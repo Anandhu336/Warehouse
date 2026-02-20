@@ -1,4 +1,4 @@
-import BinCard from "./Bincard";
+import BinCard from "./BinCard";
 
 export default function RackGrid({ bins, onSelect }) {
   const left = {};
