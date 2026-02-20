@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import RackGrid from "../components/RackGrid";
+import RackGrid from "../components/Rackgrid";
 import BinPopup from "../components/BinPopup";
 import BASE_URL from "../api";
 

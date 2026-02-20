@@ -1,4 +1,4 @@
-import BinCard from "./BinCard";
+import BinCard from "./Bincard";
 
 export default function AisleColumn({ title, bins }) {
   const aisles = [...new Set(bins.map(b => b.aisle))];
