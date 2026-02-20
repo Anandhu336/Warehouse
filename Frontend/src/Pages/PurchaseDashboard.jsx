@@ -8,6 +8,7 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
+import BASE_URL from "../api";
 
 export default function PurchaseDashboard() {
   const [salesFile, setSalesFile] = useState(null);
@@ -30,12 +31,16 @@ export default function PurchaseDashboard() {
 
     try {
       setLoading(true);
-      const res = await fetch("http://127.0.0.1:8000/purchase/analyze", {
+
+      const res = await fetch(`${BASE_URL}/purchase/analyze`, {
         method: "POST",
         body: formData,
       });
+
+      if (!res.ok) throw new Error("Analysis failed");
+
       const data = await res.json();
-      setResults(data);
+      setResults(Array.isArray(data) ? data : []);
     } catch {
       alert("Error running analysis");
     } finally {
@@ -95,7 +100,8 @@ export default function PurchaseDashboard() {
   let cumulative = 0;
   abcData.forEach(item => {
     cumulative += item.capital_required;
-    const percent = cumulative / totalCapital;
+    const percent =
+      totalCapital > 0 ? cumulative / totalCapital : 0;
 
     if (percent <= 0.7) item.abc = "A";
     else if (percent <= 0.9) item.abc = "B";
@@ -109,7 +115,6 @@ export default function PurchaseDashboard() {
         Advanced purchasing control & capital optimisation
       </p>
 
-      {/* Upload Section */}
       <div style={uploadBox}>
         <input type="file" onChange={e => setSalesFile(e.target.files[0])} />
         <input type="file" onChange={e => setStockFile(e.target.files[0])} />
@@ -119,7 +124,6 @@ export default function PurchaseDashboard() {
         </button>
       </div>
 
-      {/* KPI Row */}
       {results.length > 0 && (
         <>
           <div style={kpiRow}>
@@ -130,7 +134,6 @@ export default function PurchaseDashboard() {
             <KPI title="Avg Days Cover" value={avgDaysCover} />
           </div>
 
-          {/* Budget Simulation */}
           <div style={{ marginTop: 30 }}>
             <h3>Budget Simulation</h3>
             <input
@@ -149,7 +152,6 @@ export default function PurchaseDashboard() {
             </div>
           </div>
 
-          {/* Status Chart */}
           <div style={chartBlock}>
             <h2>Status Distribution</h2>
             <ResponsiveContainer width="100%" height={300}>
@@ -169,7 +171,6 @@ export default function PurchaseDashboard() {
             </ResponsiveContainer>
           </div>
 
-          {/* Capital Chart */}
           <div style={chartBlock}>
             <h2>Top 10 Capital Impact</h2>
             <ResponsiveContainer width="100%" height={300}>
@@ -187,7 +188,6 @@ export default function PurchaseDashboard() {
             </ResponsiveContainer>
           </div>
 
-          {/* ABC Chart */}
           <div style={chartBlock}>
             <h2>ABC Classification</h2>
             <ResponsiveContainer width="100%" height={300}>
@@ -207,7 +207,6 @@ export default function PurchaseDashboard() {
             </ResponsiveContainer>
           </div>
 
-          {/* Smart Table */}
           <div style={{ marginTop: 40 }}>
             <h2>Reorder Recommendations</h2>
             <table style={table}>
@@ -226,9 +225,9 @@ export default function PurchaseDashboard() {
                 {prioritizedOrders.map((r, i) => (
                   <tr key={i} style={rowStyle(r.status)}>
                     <td>{r.sku}</td>
-                    <td>{r.avg_daily_sales.toFixed(1)}</td>
+                    <td>{Number(r.avg_daily_sales).toFixed(1)}</td>
                     <td>{r.current_stock}</td>
-                    <td>{r.days_cover.toFixed(1)}</td>
+                    <td>{Number(r.days_cover).toFixed(1)}</td>
                     <td>{Math.round(r.suggested_order)}</td>
                     <td>£{Math.round(r.capital_required)}</td>
                     <td>{r.status}</td>
@@ -243,10 +242,6 @@ export default function PurchaseDashboard() {
   );
 }
 
-/* ---------------------- */
-/* COMPONENTS */
-/* ---------------------- */
-
 const KPI = ({ title, value, highlight }) => {
   let bg = "#111827";
   if (highlight === "red") bg = "#7f1d1d";
@@ -259,10 +254,6 @@ const KPI = ({ title, value, highlight }) => {
     </div>
   );
 };
-
-/* ---------------------- */
-/* STYLES */
-/* ---------------------- */
 
 const container = {
   padding: 32,

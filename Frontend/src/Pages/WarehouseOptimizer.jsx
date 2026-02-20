@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import BASE_URL from "../api";
 
 export default function WarehouseOptimizer() {
   const [locations, setLocations] = useState([]);
@@ -17,19 +18,13 @@ export default function WarehouseOptimizer() {
     brands: [],
   });
 
-  // -----------------------------
-  // Load filter options
-  // -----------------------------
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/optimizer/filters")
+    fetch(`${BASE_URL}/optimizer/filters`)
       .then(res => res.json())
       .then(data => setAvailableFilters(data || { categories: [], brands: [] }))
       .catch(() => setAvailableFilters({ categories: [], brands: [] }));
   }, []);
 
-  // -----------------------------
-  // Load locations
-  // -----------------------------
   useEffect(() => {
     loadLocations();
   }, [filters]);
@@ -38,14 +33,11 @@ export default function WarehouseOptimizer() {
     setLoading(true);
 
     const params = { ...filters };
-
-    if (params.aisle === "ALL") {
-      delete params.aisle;
-    }
+    if (params.aisle === "ALL") delete params.aisle;
 
     const query = new URLSearchParams(params).toString();
 
-    fetch(`http://127.0.0.1:8000/optimizer/locations?${query}`)
+    fetch(`${BASE_URL}/optimizer/locations?${query}`)
       .then(res => res.json())
       .then(data => {
         setLocations(Array.isArray(data) ? data : []);
@@ -58,19 +50,18 @@ export default function WarehouseOptimizer() {
   };
 
   const updateCapacity = async (location_code, value) => {
-  await fetch("http://127.0.0.1:8000/locations/pallet-capacity", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      location_code: location_code,
-      max_cartons: Number(value),
-    }),
-  });
+    await fetch(`${BASE_URL}/locations/pallet-capacity`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location_code,
+        max_cartons: Number(value),
+      }),
+    });
 
-  loadLocations();
-};
+    loadLocations();
+  };
 
-  // KPI calculations
   const totalLocations = locations.length;
   const mixedCount = locations.filter(l => l.is_mixed).length;
   const lowCount = locations.filter(l => l.needs_merge).length;
@@ -78,7 +69,6 @@ export default function WarehouseOptimizer() {
   return (
     <div className="dashboard-wrapper">
 
-      {/* HEADER */}
       <div className="dashboard-header">
         <div className="filter-row">
 
@@ -87,11 +77,9 @@ export default function WarehouseOptimizer() {
             onChange={e => setFilters({ ...filters, aisle: e.target.value })}
           >
             <option value="ALL">All Aisles</option>
-            <option value="P">P</option>
-            <option value="Q">Q</option>
-            <option value="R">R</option>
-            <option value="S">S</option>
-            <option value="T">T</option>
+            {["P","Q","R","S","T"].map(a => (
+              <option key={a} value={a}>{a}</option>
+            ))}
           </select>
 
           <select
@@ -120,7 +108,6 @@ export default function WarehouseOptimizer() {
             value={filters.search}
             onChange={e => setFilters({ ...filters, search: e.target.value })}
           />
-
         </div>
 
         <div className="dashboard-stats">
@@ -130,10 +117,8 @@ export default function WarehouseOptimizer() {
         </div>
       </div>
 
-      {/* BODY */}
       <div className="dashboard-body">
 
-        {/* GRID */}
         <div className="dashboard-grid">
           {loading ? (
             <p>Loading...</p>
@@ -147,10 +132,7 @@ export default function WarehouseOptimizer() {
                 return (
                   <div
                     key={i}
-                    className={`optimizer-card 
-                      ${p.is_mixed ? "mixed" : ""}
-                      ${p.needs_merge ? "low" : ""}
-                    `}
+                    className={`optimizer-card ${p.is_mixed ? "mixed" : ""} ${p.needs_merge ? "low" : ""}`}
                     onClick={() => setSelected(p)}
                   >
                     <div className="opt-header">
@@ -171,10 +153,7 @@ export default function WarehouseOptimizer() {
                       />
                     </div>
 
-                    {p.is_mixed && (
-                      <div className="flag red">Mixed SKU</div>
-                    )}
-
+                    {p.is_mixed && <div className="flag red">Mixed SKU</div>}
                     {p.needs_merge && (
                       <div className="flag yellow">
                         Low Occupancy — Merge Suggested
@@ -187,27 +166,20 @@ export default function WarehouseOptimizer() {
           )}
         </div>
 
-        {/* SIDEBAR */}
         {selected && (
           <div className="dashboard-sidebar">
             <h3>{selected.location_code}</h3>
-            <div className="sidebar-occ">
-              Occupancy: {selected.occupancy_percent}%
-            </div>
+            <div>Occupancy: {selected.occupancy_percent}%</div>
 
             <h4>Products</h4>
-
-            <div className="sidebar-products">
-              {selected.items.map((item, idx) => (
-                <div key={idx} className="sku-row">
-                  <div>{item.product_name}</div>
-                  <div>{item.cartons} cartons</div>
-                </div>
-              ))}
-            </div>
+            {selected.items.map((item, idx) => (
+              <div key={idx} className="sku-row">
+                <div>{item.product_name}</div>
+                <div>{item.cartons} cartons</div>
+              </div>
+            ))}
           </div>
         )}
-
       </div>
     </div>
   );

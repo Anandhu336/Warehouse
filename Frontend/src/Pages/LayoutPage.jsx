@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import RackGrid from "../components/RackGrid";
 import BinPopup from "../components/BinPopup";
+import BASE_URL from "../api";
 
 export default function LayoutPage() {
   const navigate = useNavigate();
@@ -22,14 +23,27 @@ export default function LayoutPage() {
   // LOAD DATA
   // ===============================
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/bins")
-      .then(res => res.json())
-      .then(data => {
-        setBins(data);
-        setFilteredBins(data);
+    const loadBins = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/bins`);
+
+        if (!res.ok) throw new Error("Failed to load bins");
+
+        const data = await res.json();
+
+        const safeData = Array.isArray(data) ? data : [];
+
+        setBins(safeData);
+        setFilteredBins(safeData);
+      } catch {
+        setBins([]);
+        setFilteredBins([]);
+      } finally {
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      }
+    };
+
+    loadBins();
   }, []);
 
   // ===============================
@@ -40,17 +54,16 @@ export default function LayoutPage() {
 
     if (aisleFilter !== "ALL") {
       result = result.filter(b =>
-        b.location_code.startsWith(aisleFilter)
+        b.location_code?.startsWith(aisleFilter)
       );
     }
 
     if (search.trim()) {
       const query = search.trim().toLowerCase();
-
       const ranked = [];
 
       result.forEach(loc => {
-        const locationCode = loc.location_code.toLowerCase();
+        const locationCode = loc.location_code?.toLowerCase() || "";
 
         const exactLocation = locationCode === query;
         const partialLocation = locationCode.includes(query);
@@ -67,8 +80,10 @@ export default function LayoutPage() {
           i.product_name?.toLowerCase().includes(query)
         );
 
-        if (exactLocation) ranked.unshift({ ...loc, highlight: true });
-        else if (skuExact) ranked.unshift(loc);
+        if (exactLocation)
+          ranked.unshift({ ...loc, highlight: true });
+        else if (skuExact)
+          ranked.unshift(loc);
         else if (partialLocation || skuPartial || productMatch)
           ranked.push(loc);
       });
@@ -86,6 +101,7 @@ export default function LayoutPage() {
     if (!search) return;
 
     const el = document.getElementById(search.toUpperCase());
+
     if (el) {
       el.scrollIntoView({
         behavior: "smooth",
@@ -98,24 +114,28 @@ export default function LayoutPage() {
   // SAVE CAPACITY
   // ===============================
   const saveCapacity = async (locationCode, maxCartons) => {
-    await fetch("http://127.0.0.1:8000/locations/pallet-capacity", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location_code: locationCode.toUpperCase(),
-        max_cartons: maxCartons,
-      }),
-    });
+    try {
+      await fetch(`${BASE_URL}/locations/pallet-capacity`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location_code: locationCode.toUpperCase(),
+          max_cartons: Number(maxCartons),
+        }),
+      });
 
-    setBins(prev =>
-      prev.map(b =>
-        b.location_code === locationCode.toUpperCase()
-          ? { ...b, max_cartons: maxCartons }
-          : b
-      )
-    );
+      setBins(prev =>
+        prev.map(b =>
+          b.location_code === locationCode.toUpperCase()
+            ? { ...b, max_cartons: Number(maxCartons) }
+            : b
+        )
+      );
 
-    setSelectedLocation(null);
+      setSelectedLocation(null);
+    } catch {
+      alert("Failed to update capacity");
+    }
   };
 
   return (
@@ -177,6 +197,23 @@ export default function LayoutPage() {
   );
 }
 
-const topBar = { display: "flex", gap: 12, marginBottom: 16 };
-const btn = { background: "#161a22", color: "#fff", padding: "8px 12px" };
-const input = { background: "#161a22", color: "#fff", padding: "8px 12px" };
+const topBar = {
+  display: "flex",
+  gap: 12,
+  marginBottom: 16,
+};
+
+const btn = {
+  background: "#161a22",
+  color: "#fff",
+  padding: "8px 12px",
+  border: "none",
+  cursor: "pointer",
+};
+
+const input = {
+  background: "#161a22",
+  color: "#fff",
+  padding: "8px 12px",
+  border: "none",
+};

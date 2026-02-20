@@ -19,13 +19,17 @@ export default function WarehouseUpload() {
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/upload/history");
+      const res = await fetch(`${BASE_URL}/upload/history`);
 
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn("History fetch failed");
+        return;
+      }
 
       const data = await res.json();
       setHistory(Array.isArray(data) ? data : []);
-    } catch {
+    } catch (err) {
+      console.error("History error:", err);
       setHistory([]);
     }
   };
@@ -44,14 +48,12 @@ export default function WarehouseUpload() {
     setReport(null);
 
     const formData = new FormData();
-
-    // IMPORTANT: must match backend names exactly
     formData.append("products_file", productFile);
     formData.append("location_file", locationFile);
 
     try {
       const res = await fetch(
-        "http://127.0.0.1:8000/upload/warehouse-data",
+        `${BASE_URL}/upload/warehouse-data`,
         {
           method: "POST",
           body: formData,
@@ -65,22 +67,17 @@ export default function WarehouseUpload() {
 
       const data = await res.json();
 
-      // Backend currently returns:
-      // {
-      //   status: "success",
-      //   products_loaded: ...,
-      //   locations_loaded: ...
-      // }
-
       setReport({
         product_rows: data.products_loaded || 0,
         location_rows: data.locations_loaded || 0,
-        new_products: 0,
-        updated_products: 0,
+        new_products: data.new_products || 0,
+        updated_products: data.updated_products || 0,
       });
 
-      fetchHistory(); // refresh history
+      // Refresh history after successful upload
+      fetchHistory();
     } catch (err) {
+      console.error("Upload error:", err);
       setError(err.message || "Upload failed");
     } finally {
       setLoading(false);
@@ -90,12 +87,13 @@ export default function WarehouseUpload() {
   return (
     <div className="upload-wrapper">
       <h2 className="upload-title">Warehouse Data Upload</h2>
+
       <p className="upload-subtitle">
         Upload Product Master & Location Stock CSV to auto-update the system
       </p>
 
       {/* ========================= */}
-      {/* UPLOAD CARDS */}
+      {/* UPLOAD SECTION */}
       {/* ========================= */}
 
       <div className="upload-grid">
@@ -180,6 +178,7 @@ export default function WarehouseUpload() {
                 <th>Updated</th>
               </tr>
             </thead>
+
             <tbody>
               {history.map((h, i) => (
                 <tr key={i}>
@@ -188,10 +187,10 @@ export default function WarehouseUpload() {
                       ? new Date(h.upload_time).toLocaleString()
                       : "-"}
                   </td>
-                  <td>{h.product_rows}</td>
-                  <td>{h.location_rows}</td>
-                  <td>{h.new_products}</td>
-                  <td>{h.updated_products}</td>
+                  <td>{h.product_rows || 0}</td>
+                  <td>{h.location_rows || 0}</td>
+                  <td>{h.new_products || 0}</td>
+                  <td>{h.updated_products || 0}</td>
                 </tr>
               ))}
             </tbody>

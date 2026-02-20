@@ -1,5 +1,6 @@
 import { useState } from "react";
 import PrintLabels from "../components/PrintLabels";
+import BASE_URL from "../api";
 
 export default function PoLabels() {
   const [file, setFile] = useState(null);
@@ -12,7 +13,10 @@ export default function PoLabels() {
      UPLOAD PO
   ================================ */
   const uploadPO = async () => {
-    if (!file) return setError("Please select a CSV");
+    if (!file) {
+      setError("Please select a CSV");
+      return;
+    }
 
     setLoading(true);
     setError("");
@@ -21,29 +25,31 @@ export default function PoLabels() {
     formData.append("file", file);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/po/labels", {
+      const res = await fetch(`${BASE_URL}/po/labels`, {
         method: "POST",
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Upload failed");
+      }
 
       const data = await res.json();
-      setLabels(data.labels || []);
+      setLabels(Array.isArray(data.labels) ? data.labels : []);
     } catch (e) {
-      setError(e.message);
+      setError(e.message || "Upload failed");
     } finally {
       setLoading(false);
     }
   };
 
   /* ===============================
-     ✅ FIXED QTY UPDATE
+     UPDATE QTY
   ================================ */
   const updateQty = (i, value) => {
     const copy = [...labels];
 
-    // 🔑 allow empty while typing
     const qty = value === "" ? "" : Number(value);
     const units = copy[i].units_per_carton || 1;
 
@@ -57,14 +63,16 @@ export default function PoLabels() {
   };
 
   /* ===============================
-     BARCODE UPDATE
+     UPDATE BARCODE
   ================================ */
   const updateBarcode = (i, value) => {
     const copy = [...labels];
+
     copy[i] = {
       ...copy[i],
       carton_barcode: value.replace(/\D/g, ""),
     };
+
     setLabels(copy);
   };
 
@@ -86,7 +94,9 @@ export default function PoLabels() {
   return (
     <div className="po-page">
       <h2>PO Label Printing</h2>
-      <p className="subtitle">Upload PO CSV — edit & print labels</p>
+      <p className="subtitle">
+        Upload PO CSV — edit & print labels
+      </p>
 
       <div className="upload-card">
         <input
@@ -94,7 +104,8 @@ export default function PoLabels() {
           accept=".csv"
           onChange={e => setFile(e.target.files[0])}
         />
-        <button onClick={uploadPO}>
+
+        <button onClick={uploadPO} disabled={loading}>
           {loading ? "Processing…" : "Upload PO"}
         </button>
       </div>
@@ -119,22 +130,26 @@ export default function PoLabels() {
                   <td>{l.sku}</td>
                   <td>{l.product_name}</td>
 
-                  {/* ✅ FIXED INPUT */}
                   <td>
                     <input
                       type="number"
                       value={l.qty_outstanding}
-                      onChange={e => updateQty(i, e.target.value)}
-                      placeholder=""
+                      onChange={e =>
+                        updateQty(i, e.target.value)
+                      }
                     />
                   </td>
 
-                  <td className="labels">{l.labels_required}</td>
+                  <td className="labels">
+                    {l.labels_required}
+                  </td>
 
                   <td>
                     <input
                       value={l.carton_barcode || ""}
-                      onChange={e => updateBarcode(i, e.target.value)}
+                      onChange={e =>
+                        updateBarcode(i, e.target.value)
+                      }
                     />
                   </td>
                 </tr>
