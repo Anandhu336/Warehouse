@@ -1,5 +1,5 @@
 import { useState } from "react";
-import PrintLabels from "../components/PrintLabels";
+import PrintLabels from "../Components/PrintLabels";
 import BASE_URL from "../api";
 
 export default function PoLabels() {
