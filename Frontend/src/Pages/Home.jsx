@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import FeatureCard from "../components/FeatureCard";
+import FeatureCard from "../Components/FeatureCard";
 
 export default function Home() {
   const navigate = useNavigate();
