@@ -39,7 +39,7 @@ def get_filters():
 
 
 # -----------------------------
-# GET LOCATIONS (FIXED)
+# GET LOCATIONS
 # -----------------------------
 @router.get("/locations")
 def get_locations(
@@ -51,51 +51,34 @@ def get_locations(
     base_query = """
         SELECT
             UPPER(ls.location_code) AS location_code,
-
-            -- ✅ Correct aisle extraction
-            split_part(split_part(ls.location_code, ' ', 2), '-', 1) AS aisle,
-
-            -- ✅ Correct rack extraction
-            split_part(split_part(ls.location_code, ' ', 2), '-', 2) AS rack_type,
-
+            LEFT(split_part(ls.location_code, '-', 1), 1) AS aisle,
+            split_part(ls.location_code, '-', 2) AS rack_type,
             ls.sku,
             p.product_name,
             p.brand,
             p.category,
-
             FLOOR(ls.units::float / p.units_per_carton) AS cartons,
-
             COALESCE(
-                lc.max_cartons,
-                prc.max_cartons,
-                42
+                lc.max_cartons,     -- manual override
+                prc.max_cartons,    -- product + rack rule
+                42                  -- default
             ) AS max_cartons
-
         FROM location_stock ls
         JOIN products p ON p.sku = ls.sku
-
         LEFT JOIN location_capacity lc
             ON UPPER(lc.location_code) = UPPER(ls.location_code)
-
         LEFT JOIN product_rack_capacity prc
             ON prc.sku = ls.sku
-           AND prc.rack_type =
-                split_part(split_part(ls.location_code, ' ', 2), '-', 2)
-
-        WHERE 1=1
+           AND prc.rack_type = split_part(ls.location_code, '-', 2)
+        WHERE LEFT(split_part(ls.location_code, '-', 1), 1)
+              IN ('P','Q','R','S','T')
     """
 
     params = {}
 
-    # ✅ Aisle filter (first letter of aisle)
     if aisle:
-        base_query += """
-            AND LEFT(
-                split_part(split_part(ls.location_code, ' ', 2), '-', 1),
-                1
-            ) = :aisle
-        """
-        params["aisle"] = aisle.upper()
+        base_query += " AND LEFT(split_part(ls.location_code, '-', 1), 1) = :aisle"
+        params["aisle"] = aisle
 
     if category:
         base_query += " AND p.category ILIKE :category"
