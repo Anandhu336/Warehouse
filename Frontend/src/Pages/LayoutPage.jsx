@@ -30,12 +30,12 @@ export default function LayoutPage() {
         if (!res.ok) throw new Error("Failed to load bins");
 
         const data = await res.json();
-
         const safeData = Array.isArray(data) ? data : [];
 
         setBins(safeData);
         setFilteredBins(safeData);
-      } catch {
+      } catch (err) {
+        console.error("Error loading bins:", err);
         setBins([]);
         setFilteredBins([]);
       } finally {
@@ -47,17 +47,26 @@ export default function LayoutPage() {
   }, []);
 
   // ===============================
-  // SMART SEARCH + RANKING
+  // SMART FILTER + SEARCH
   // ===============================
   useEffect(() => {
     let result = bins;
 
+    // ✅ CORRECT AISLE FILTER
     if (aisleFilter !== "ALL") {
-      result = result.filter(b =>
-        b.location_code?.startsWith(aisleFilter)
-      );
+      result = result.filter(b => {
+        if (!b.location_code) return false;
+
+        // Format: "ELECTRA P5-A1"
+        const parts = b.location_code.split(" ");
+        if (parts.length < 2) return false;
+
+        const aislePart = parts[1].split("-")[0]; // P5
+        return aislePart.startsWith(aisleFilter);
+      });
     }
 
+    // 🔍 SMART SEARCH
     if (search.trim()) {
       const query = search.trim().toLowerCase();
       const ranked = [];
@@ -133,7 +142,8 @@ export default function LayoutPage() {
       );
 
       setSelectedLocation(null);
-    } catch {
+    } catch (err) {
+      console.error("Capacity update failed:", err);
       alert("Failed to update capacity");
     }
   };
