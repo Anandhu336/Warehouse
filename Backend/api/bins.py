@@ -10,13 +10,23 @@ def get_bins():
     SELECT
         UPPER(ls.location_code) AS location_code,
 
-        split_part(UPPER(ls.location_code), '-', 1) AS aisle,
+        -- ✅ Extract aisle correctly (P5 from "ELECTRA P5-A1")
+        split_part(
+            split_part(UPPER(ls.location_code), ' ', 2),
+            '-',
+            1
+        ) AS aisle,
 
+        -- ✅ Side detection from aisle number
         CASE
             WHEN (
                 NULLIF(
                     regexp_replace(
-                        split_part(UPPER(ls.location_code), '-', 1),
+                        split_part(
+                            split_part(UPPER(ls.location_code), ' ', 2),
+                            '-',
+                            1
+                        ),
                         '[^0-9]',
                         '',
                         'g'
@@ -81,7 +91,15 @@ def get_bins():
     LEFT JOIN location_capacity lc
         ON UPPER(lc.location_code) = UPPER(ls.location_code)
 
-    WHERE split_part(UPPER(ls.location_code), '-', 1) ~ '^[PQRST]'
+    -- ✅ FIXED FILTER
+    WHERE LEFT(
+        split_part(
+            split_part(UPPER(ls.location_code), ' ', 2),
+            '-',
+            1
+        ),
+        1
+    ) IN ('P','Q','R','S','T')
 
     GROUP BY UPPER(ls.location_code), lc.max_cartons
     ORDER BY UPPER(ls.location_code);
