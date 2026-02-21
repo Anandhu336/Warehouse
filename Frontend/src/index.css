@@ -734,3 +734,85 @@ td input {
   padding: 10px;
   border-top: 1px solid #1f2937;
 }
+
+
+/* Disable hover popup on touch devices */
+@media (hover: none), (pointer: coarse) {
+  .hover-layer-fixed {
+    display: none !important;
+  }
+}
+
+/*Mobile */
+@media (max-width: 768px) {
+
+  /* Home */
+  .home-title {
+    font-size: 28px;
+  }
+
+  .home-search {
+    max-width: 100%;
+  }
+
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Dashboard layout */
+  .dashboard-body {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-sidebar {
+    max-height: none;
+    margin-top: 20px;
+  }
+
+  /* Cards */
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Filter row */
+  .filter-row {
+    flex-direction: column;
+  }
+
+  .dashboard-stats {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* Upload page */
+  .upload-grid {
+    flex-direction: column;
+  }
+
+  .report-grid {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+/*Tablet */
+
+@media (min-width: 769px) and (max-width: 1024px) {
+
+  .feature-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard-body {
+    grid-template-columns: 1fr;
+  }
+
+  .card-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .report-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+}
