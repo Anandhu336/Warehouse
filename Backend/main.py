@@ -17,6 +17,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "https://warehousevsl.vercel.app",  # Added Vercel frontend domain
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -34,6 +35,7 @@ app.include_router(purchase_router)
 @app.get("/ping")
 def ping():
     return {"status": "working"}
+
 @app.get("/")
 def root():
     return {"status": "API running"}
