@@ -8,39 +8,44 @@ router = APIRouter(prefix="/optimizer", tags=["Optimizer"])
 ALLOWED_AISLES = ["P", "Q", "R", "S", "T"]
 
 
-# -----------------------------
-# FILTER OPTIONS
-# -----------------------------
+# =====================================================
+# FILTER OPTIONS (Optimized + Safe)
+# =====================================================
 @router.get("/filters")
 def get_filters():
-    with engine.connect() as conn:
-        categories = conn.execute(
-            text("""
-                SELECT DISTINCT category
+    try:
+        with engine.begin() as conn:
+
+            categories = conn.execute(text("""
+                SELECT category
                 FROM products
                 WHERE category IS NOT NULL
+                  AND TRIM(category) <> ''
+                GROUP BY category
                 ORDER BY category
-            """)
-        ).scalars().all()
+            """)).scalars().all()
 
-        brands = conn.execute(
-            text("""
-                SELECT DISTINCT brand
+            brands = conn.execute(text("""
+                SELECT brand
                 FROM products
                 WHERE brand IS NOT NULL
+                  AND TRIM(brand) <> ''
+                GROUP BY brand
                 ORDER BY brand
-            """)
-        ).scalars().all()
+            """)).scalars().all()
 
-    return {
-        "categories": categories,
-        "brands": brands,
-    }
+        return {
+            "categories": categories or [],
+            "brands": brands or [],
+        }
+
+    except Exception:
+        return {"categories": [], "brands": []}
 
 
-# -----------------------------
-# GET LOCATIONS (FIXED)
-# -----------------------------
+# =====================================================
+# GET LOCATIONS
+# =====================================================
 @router.get("/locations")
 def get_locations(
     aisle: str | None = Query(None),
@@ -52,24 +57,32 @@ def get_locations(
         SELECT
             UPPER(ls.location_code) AS location_code,
 
-            -- ✅ Correct aisle extraction
-            split_part(split_part(ls.location_code, ' ', 2), '-', 1) AS aisle,
+            -- Extract aisle properly (first letter after space)
+            LEFT(
+                split_part(split_part(ls.location_code, ' ', 2), '-', 1),
+                1
+            ) AS aisle,
 
-            -- ✅ Correct rack extraction
-            split_part(split_part(ls.location_code, ' ', 2), '-', 2) AS rack_type,
+            split_part(
+                split_part(ls.location_code, ' ', 2),
+                '-',
+                2
+            ) AS rack_type,
 
             ls.sku,
             p.product_name,
             p.brand,
             p.category,
 
-            FLOOR(ls.units::float / p.units_per_carton) AS cartons,
+            FLOOR(
+                CASE
+                    WHEN p.units_per_carton IS NULL OR p.units_per_carton = 0
+                    THEN 0
+                    ELSE ls.units::float / p.units_per_carton
+                END
+            ) AS cartons,
 
-            COALESCE(
-                lc.max_cartons,
-                prc.max_cartons,
-                42
-            ) AS max_cartons
+            COALESCE(lc.max_cartons, prc.max_cartons, 42) AS max_cartons
 
         FROM location_stock ls
         JOIN products p ON p.sku = ls.sku
@@ -87,7 +100,6 @@ def get_locations(
 
     params = {}
 
-    # ✅ Aisle filter (first letter of aisle)
     if aisle:
         base_query += """
             AND LEFT(
@@ -106,25 +118,37 @@ def get_locations(
         params["brand"] = f"%{brand}%"
 
     if search:
-        base_query += " AND (ls.sku ILIKE :search OR p.product_name ILIKE :search)"
+        base_query += """
+            AND (
+                ls.sku ILIKE :search
+                OR p.product_name ILIKE :search
+            )
+        """
         params["search"] = f"%{search}%"
 
     base_query += """
-        AND (ls.units::float / p.units_per_carton) > 0
+        AND (
+            CASE
+                WHEN p.units_per_carton IS NULL OR p.units_per_carton = 0
+                THEN 0
+                ELSE ls.units::float / p.units_per_carton
+            END
+        ) > 0
         ORDER BY location_code
     """
 
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         rows = conn.execute(text(base_query), params).mappings().all()
 
         sku_check = conn.execute(text("""
-            SELECT location_code, COUNT(DISTINCT sku) as sku_count
+            SELECT UPPER(location_code) AS location_code,
+                   COUNT(DISTINCT sku) AS sku_count
             FROM location_stock
             GROUP BY location_code
         """)).mappings().all()
 
     sku_map = {
-        row["location_code"].upper(): row["sku_count"]
+        row["location_code"]: row["sku_count"]
         for row in sku_check
     }
 
@@ -142,11 +166,10 @@ def get_locations(
 
         occupancy_percent = (
             round((total_cartons / capacity) * 100, 1)
-            if capacity > 0
-            else 0
+            if capacity > 0 else 0
         )
 
-        real_sku_count = sku_map.get(location_code.upper(), 0)
+        real_sku_count = sku_map.get(location_code, 0)
         is_mixed = real_sku_count > 1
         needs_merge = occupancy_percent < 60
 
@@ -172,16 +195,15 @@ def get_locations(
     return result
 
 
-# -----------------------------
+# =====================================================
 # SET PRODUCT RACK CAPACITY
-# -----------------------------
+# =====================================================
 @router.post("/set-product-rack-capacity")
 def set_product_rack_capacity(
     sku: str,
     rack_type: str,
     max_cartons: int
 ):
-
     if max_cartons <= 0:
         return {"error": "Capacity must be greater than 0"}
 
@@ -200,12 +222,12 @@ def set_product_rack_capacity(
             }
         )
 
-    return {"status": "product rack capacity updated"}
+    return {"status": "updated"}
 
 
-# -----------------------------
+# =====================================================
 # STATIC AISLES
-# -----------------------------
+# =====================================================
 @router.get("/aisles")
 def get_aisles():
     return {"aisles": ALLOWED_AISLES}
