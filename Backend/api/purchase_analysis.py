@@ -7,31 +7,44 @@ router = APIRouter(prefix="/purchase", tags=["Purchase Analysis"])
 
 @router.post("/analyze")
 async def analyze_purchase(
-    sales_file: UploadFile = File(...),
-    stock_file: UploadFile = File(...),
-    supplier_file: UploadFile = File(...)
+    sales_file: UploadFile | None = File(None),
+    stock_file: UploadFile | None = File(None),
+    supplier_file: UploadFile | None = File(None)
 ):
     try:
-        # ===============================
-        # READ FILES (SAFE)
-        # ===============================
-        try:
-            sales_df = pd.read_csv(sales_file.file)
-        except:
-            sales_df = pd.read_csv(sales_file.file, encoding="latin1")
-
-        try:
-            stock_df = pd.read_csv(stock_file.file)
-        except:
-            stock_df = pd.read_csv(stock_file.file, encoding="latin1")
-
-        try:
-            supplier_df = pd.read_csv(supplier_file.file)
-        except:
-            supplier_df = pd.read_csv(supplier_file.file, encoding="latin1")
 
         # ===============================
-        # VALIDATION
+        # FILE VALIDATION
+        # ===============================
+        if not sales_file or not stock_file or not supplier_file:
+            raise HTTPException(
+                status_code=400,
+                detail="All three files (sales, stock, supplier) are required"
+            )
+
+        # ===============================
+        # READ FILES SAFELY
+        # ===============================
+        def safe_read(file):
+            try:
+                return pd.read_csv(file.file)
+            except:
+                file.file.seek(0)
+                return pd.read_csv(file.file, encoding="latin1")
+
+        sales_df = safe_read(sales_file)
+        stock_df = safe_read(stock_file)
+        supplier_df = safe_read(supplier_file)
+
+        # ===============================
+        # CLEAN COLUMN NAMES
+        # ===============================
+        sales_df.columns = sales_df.columns.str.strip().str.lower()
+        stock_df.columns = stock_df.columns.str.strip().str.lower()
+        supplier_df.columns = supplier_df.columns.str.strip().str.lower()
+
+        # ===============================
+        # REQUIRED COLUMNS
         # ===============================
         required_sales = {"date", "sku", "qty_sold"}
         required_stock = {"sku", "current_stock"}
@@ -49,7 +62,7 @@ async def analyze_purchase(
             raise HTTPException(status_code=400, detail="Supplier file missing required columns")
 
         # ===============================
-        # CLEAN SALES DATA
+        # SALES PROCESSING
         # ===============================
         sales_df["date"] = pd.to_datetime(sales_df["date"], errors="coerce")
         sales_df = sales_df.dropna(subset=["date"])
@@ -71,13 +84,13 @@ async def analyze_purchase(
         avg_sales = avg_sales[["sku", "avg_daily_sales"]]
 
         # ===============================
-        # MERGE
+        # MERGE DATA
         # ===============================
         df = avg_sales.merge(stock_df, on="sku", how="right")
         df = df.merge(supplier_df, on="sku", how="left")
 
         # ===============================
-        # CLEAN NUMERIC COLUMNS
+        # CLEAN NUMERIC COLUMNS SAFELY
         # ===============================
         numeric_cols = [
             "avg_daily_sales",
@@ -89,15 +102,13 @@ async def analyze_purchase(
         ]
 
         for col in numeric_cols:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors="coerce")
-
-        df[numeric_cols] = df[numeric_cols].fillna(0)
+            if col not in df.columns:
+                df[col] = 0
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
         # ===============================
         # CALCULATIONS
         # ===============================
-
         df["days_cover"] = np.where(
             df["avg_daily_sales"] > 0,
             df["current_stock"] / df["avg_daily_sales"],
@@ -111,11 +122,9 @@ async def analyze_purchase(
 
         df["suggested_order"] = (
             df["reorder_point"] - df["current_stock"]
-        )
+        ).clip(lower=0)
 
-        df["suggested_order"] = df["suggested_order"].clip(lower=0)
-
-        # Apply MOQ
+        # Apply MOQ safely
         df["suggested_order"] = df.apply(
             lambda row: max(row["moq"], row["suggested_order"])
             if row["suggested_order"] > 0 else 0,
@@ -127,7 +136,7 @@ async def analyze_purchase(
         )
 
         # ===============================
-        # STATUS
+        # STATUS LOGIC
         # ===============================
         def get_status(row):
             if row["current_stock"] <= row["reorder_point"] * 0.7:
@@ -140,7 +149,7 @@ async def analyze_purchase(
         df["status"] = df.apply(get_status, axis=1)
 
         # ===============================
-        # FINAL RESULT
+        # FINAL OUTPUT
         # ===============================
         result = df[[
             "sku",
@@ -153,9 +162,7 @@ async def analyze_purchase(
             "status"
         ]]
 
-        # 🔥 CRITICAL FIX FOR JSON
-        result = result.replace([np.inf, -np.inf], 0)
-        result = result.fillna(0)
+        result = result.replace([np.inf, -np.inf], 0).fillna(0)
 
         return result.to_dict(orient="records")
 
