@@ -57,7 +57,6 @@ def get_locations(
         SELECT
             UPPER(ls.location_code) AS location_code,
 
-            -- Extract aisle properly (first letter after space)
             LEFT(
                 split_part(split_part(ls.location_code, ' ', 2), '-', 1),
                 1
@@ -100,7 +99,9 @@ def get_locations(
 
     params = {}
 
-    if aisle:
+    # =====================================================
+    # STRICT ELECTRA AISLE FILTER
+    # =====================================================
     if aisle:
         base_query += """
             AND UPPER(ls.location_code) LIKE :aisle_prefix
@@ -116,6 +117,7 @@ def get_locations(
                 UPPER(ls.location_code) LIKE 'ELECTRA T%'
             )
         """
+
     if category:
         base_query += " AND p.category ILIKE :category"
         params["category"] = f"%{category}%"
