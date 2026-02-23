@@ -108,7 +108,14 @@ def get_locations(
             ) = :aisle
         """
         params["aisle"] = aisle.upper()
-
+    else:
+        # 🔥 IMPORTANT: limit to allowed aisles only
+        base_query += """
+            AND LEFT(
+                split_part(split_part(ls.location_code, ' ', 2), '-', 1),
+                1
+            ) IN ('P','Q','R','S','T')
+        """
     if category:
         base_query += " AND p.category ILIKE :category"
         params["category"] = f"%{category}%"
