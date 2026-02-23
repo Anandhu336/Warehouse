@@ -101,20 +101,20 @@ def get_locations(
     params = {}
 
     if aisle:
+    if aisle:
         base_query += """
-            AND LEFT(
-                split_part(split_part(ls.location_code, ' ', 2), '-', 1),
-                1
-            ) = :aisle
+            AND UPPER(ls.location_code) LIKE :aisle_prefix
         """
-        params["aisle"] = aisle.upper()
+        params["aisle_prefix"] = f"ELECTRA {aisle.upper()}%"
     else:
-        # 🔥 IMPORTANT: limit to allowed aisles only
         base_query += """
-            AND LEFT(
-                split_part(split_part(ls.location_code, ' ', 2), '-', 1),
-                1
-            ) IN ('P','Q','R','S','T')
+            AND (
+                UPPER(ls.location_code) LIKE 'ELECTRA P%' OR
+                UPPER(ls.location_code) LIKE 'ELECTRA Q%' OR
+                UPPER(ls.location_code) LIKE 'ELECTRA R%' OR
+                UPPER(ls.location_code) LIKE 'ELECTRA S%' OR
+                UPPER(ls.location_code) LIKE 'ELECTRA T%'
+            )
         """
     if category:
         base_query += " AND p.category ILIKE :category"
