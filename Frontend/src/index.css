@@ -544,6 +544,7 @@ td input {
   grid-template-columns: 1fr 380px;
   gap: 20px;
   padding: 20px;
+  min-height: 0;  /* 🔥 THIS FIXES SCROLL */
 }
 
 /* ===== GRID ===== */

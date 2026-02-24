@@ -5,12 +5,19 @@ export default function RackGrid({ bins, onSelect }) {
   const right = {};
 
   bins.forEach(loc => {
-    const num = parseInt(loc.location_code.match(/\d+/)?.[0] || 0, 10);
-    const side = num % 2 === 0 ? left : right;
+    if (!loc.location_code) return;
 
-    const aisle = loc.location_code.split("-")[0];
-    if (!side[aisle]) side[aisle] = [];
-    side[aisle].push(loc);
+    // Extract aisle number (Q16 from "ELECTRA Q16-A1")
+    const aisleMatch = loc.location_code.match(/[A-Z]\d+/);
+    const aisleFull = aisleMatch ? aisleMatch[0] : "";
+
+    const aisleNumber = parseInt(aisleFull.match(/\d+/)?.[0] || 0, 10);
+
+    // LEFT = odd numbers, RIGHT = even numbers
+    const side = aisleNumber % 2 === 0 ? right : left;
+
+    if (!side[aisleFull]) side[aisleFull] = [];
+    side[aisleFull].push(loc);
   });
 
   return (
@@ -22,19 +29,53 @@ export default function RackGrid({ bins, onSelect }) {
 }
 
 function Side({ title, data, onSelect }) {
+  // 🔥 Proper numeric aisle sorting (Q2 before Q16)
+  const sortedAisles = Object.keys(data).sort((a, b) => {
+    const letterA = a[0];
+    const letterB = b[0];
+
+    if (letterA !== letterB) {
+      return letterA.localeCompare(letterB);
+    }
+
+    const numA = parseInt(a.match(/\d+/)?.[0] || 0, 10);
+    const numB = parseInt(b.match(/\d+/)?.[0] || 0, 10);
+
+    return numA - numB;
+  });
+
   return (
     <div>
       <h2>{title}</h2>
 
-      {Object.keys(data).sort().map(aisle => (
+      {sortedAisles.map(aisle => (
         <div key={aisle} style={{ marginBottom: 32 }}>
           <h3>{aisle}</h3>
 
           <div style={aisleGrid}>
             {data[aisle]
-              .sort((a, b) =>
-                a.location_code.localeCompare(b.location_code)
-              )
+              .sort((a, b) => {
+                // 🔥 Proper rack sorting (A1, A2, B1, C2 etc.)
+                const extractRack = code => {
+                  const match = code.match(/-([A-Z]\d+)/);
+                  return match ? match[1] : "";
+                };
+
+                const rackA = extractRack(a.location_code);
+                const rackB = extractRack(b.location_code);
+
+                const letterA = rackA[0];
+                const letterB = rackB[0];
+
+                if (letterA !== letterB) {
+                  return letterA.localeCompare(letterB);
+                }
+
+                const numA = parseInt(rackA.match(/\d+/)?.[0] || 0, 10);
+                const numB = parseInt(rackB.match(/\d+/)?.[0] || 0, 10);
+
+                return numA - numB;
+              })
               .map(loc => (
                 <BinCard
                   key={loc.location_code}
