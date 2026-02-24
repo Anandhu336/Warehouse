@@ -495,7 +495,7 @@ td input {
 =================================== */
 
 .dashboard-wrapper {
-  min-height: 100vh;   /* 🔥 important */
+  height: 100vh;      /* 🔥 CHANGE from min-height */
   display: flex;
   flex-direction: column;
   background: #0f172a;
@@ -540,13 +540,13 @@ td input {
 /* ===== BODY LAYOUT ===== */
 
 .dashboard-body {
+  flex: 1;            /* 🔥 THIS IS IMPORTANT */
   display: grid;
   grid-template-columns: 1fr 380px;
   gap: 20px;
   padding: 20px;
-  min-height: 0;  /* 🔥 THIS FIXES SCROLL */
+  min-height: 0;
 }
-
 /* ===== GRID ===== */
 
 .dashboard-grid {
