@@ -135,6 +135,9 @@ def get_locations(
         """
         params["search"] = f"%{search}%"
 
+    # =====================================================
+    # PROPER NUMERIC WAREHOUSE SORTING
+    # =====================================================
     base_query += """
         AND (
             CASE
@@ -143,7 +146,17 @@ def get_locations(
                 ELSE ls.units::float / p.units_per_carton
             END
         ) > 0
-        ORDER BY location_code
+        ORDER BY
+            LEFT(split_part(split_part(ls.location_code, ' ', 2), '-', 1), 1),
+            CAST(
+                regexp_replace(
+                    split_part(split_part(ls.location_code, ' ', 2), '-', 1),
+                    '[^0-9]',
+                    '',
+                    'g'
+                ) AS INTEGER
+            ),
+            split_part(split_part(ls.location_code, ' ', 2), '-', 2)
     """
 
     with engine.begin() as conn:
