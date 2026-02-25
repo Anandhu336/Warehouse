@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import FeatureCard from "../Components/FeatureCard";
+import FeatureCard from "../components/FeatureCard"; // 🔥 lowercase
 
 export default function Home() {
   const navigate = useNavigate();
@@ -20,15 +20,14 @@ export default function Home() {
       <div className="home-overlay" />
 
       <div className="brand-watermark">
-        VAPE
-        <span>SUPPLIER</span>
+        VAPE <span>SUPPLIER</span>
       </div>
 
       <div className="home-content">
         <h1 className="home-title">Warehouse Management System</h1>
 
         <p className="home-subtitle">
-          Real-time stock visibility, intelligent layout, faster operations
+          Real-time stock visibility, intelligent layout & faster warehouse operations
         </p>
 
         <input
@@ -47,15 +46,9 @@ export default function Home() {
           />
 
           <FeatureCard
-            title="Label Printing"
-            desc="Generate & print bin & pallet labels"
-            onClick={() => navigate("/po-labels")}
-          />
-
-          <FeatureCard
-            title="AI Prediction"
-            desc="Demand forecasting & replenishment"
-            disabled
+            title="Stock Movement Scanner"
+            desc="Move stock between locations using barcode scan"
+            onClick={() => navigate("/scanner")}
           />
 
           <FeatureCard
@@ -65,14 +58,27 @@ export default function Home() {
           />
 
           <FeatureCard
+            title="Purchase Intelligence"
+            desc="Smart reorder recommendations"
+            onClick={() => navigate("/purchase-dashboard")}
+          />
+
+          <FeatureCard
+            title="Label Printing"
+            desc="Generate & print bin & pallet labels"
+            onClick={() => navigate("/po-labels")}
+          />
+
+          <FeatureCard
             title="Warehouse Upload"
             desc="Upload latest stock & product data"
             onClick={() => navigate("/warehouse-upload")}
           />
+
           <FeatureCard
-           title="Purchase Intelligence"
-           desc="Smart reorder recommendations"
-           onClick={() => navigate("/purchase-dashboard")}
+            title="AI Prediction"
+            desc="Demand forecasting & replenishment"
+            disabled
           />
         </div>
       </div>
