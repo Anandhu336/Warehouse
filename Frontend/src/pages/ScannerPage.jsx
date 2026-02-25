@@ -40,7 +40,9 @@ export default function ScannerPage() {
       <input
         placeholder="Scan FROM location"
         value={form.from_location}
-        onChange={e => setForm({ ...form, from_location: e.target.value })}
+        onChange={e =>
+          setForm({ ...form, from_location: e.target.value })
+        }
       />
 
       <br /><br />
@@ -48,7 +50,9 @@ export default function ScannerPage() {
       <input
         placeholder="Scan SKU"
         value={form.sku}
-        onChange={e => setForm({ ...form, sku: e.target.value })}
+        onChange={e =>
+          setForm({ ...form, sku: e.target.value })
+        }
       />
 
       <br /><br />
@@ -57,7 +61,9 @@ export default function ScannerPage() {
         type="number"
         placeholder="Cartons"
         value={form.cartons}
-        onChange={e => setForm({ ...form, cartons: e.target.value })}
+        onChange={e =>
+          setForm({ ...form, cartons: e.target.value })
+        }
       />
 
       <br /><br />
@@ -65,7 +71,9 @@ export default function ScannerPage() {
       <input
         placeholder="Scan TO location"
         value={form.to_location}
-        onChange={e => setForm({ ...form, to_location: e.target.value })}
+        onChange={e =>
+          setForm({ ...form, to_location: e.target.value })
+        }
       />
 
       <br /><br />
@@ -73,14 +81,6 @@ export default function ScannerPage() {
       <button onClick={moveStock}>MOVE STOCK</button>
 
       <p>{message}</p>
-    </div>
-  );
-}
-
-export default function ScannerPage() {
-  return (
-    <div style={{ padding: 40 }}>
-      <h2>Scanner Page Working</h2>
     </div>
   );
 }
