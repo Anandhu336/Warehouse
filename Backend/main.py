@@ -8,6 +8,7 @@ from api.location_capacity import router as location_capacity_router
 from api.optimizer import router as optimizer_router
 from api.uploads import router as upload_router
 from api.purchase_analysis import router as purchase_router
+from api.scanner import router as scanner_router
 
 
 app = FastAPI(title="Warehouse API")
@@ -31,6 +32,7 @@ app.include_router(location_capacity_router)
 app.include_router(optimizer_router)
 app.include_router(upload_router)
 app.include_router(purchase_router)
+app.include_router(scanner_router)
 
 @app.get("/ping")
 def ping():

@@ -16,6 +16,7 @@ function App() {
       <Route path="/optimizer" element={<WarehouseOptimizer />} />
       <Route path="/warehouse-upload" element={<WarehouseUpload />} />
       <Route path="/purchase-dashboard" element={<PurchaseDashboard />} />
+      <Route path="/scanner" element={<ScannerPage />} />
       <Route path="*" element={<Home />} />
     </Routes>
   );
