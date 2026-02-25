@@ -76,3 +76,11 @@ export default function ScannerPage() {
     </div>
   );
 }
+
+export default function ScannerPage() {
+  return (
+    <div style={{ padding: 40 }}>
+      <h2>Scanner Page Working</h2>
+    </div>
+  );
+}
