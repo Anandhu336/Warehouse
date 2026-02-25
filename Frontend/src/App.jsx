@@ -6,7 +6,7 @@ import PoLabels from "./Pages/PoLabels";
 import WarehouseUpload from "./Pages/WarehouseUpload";
 import WarehouseOptimizer from "./Pages/WarehouseOptimizer";
 import PurchaseDashboard from "./Pages/PurchaseDashboard";
-import ScannerPage from "./pages/ScannerTemp"; // ✅ ADD THIS
+import ScannerPage from "./pages/ScannerPage"; // ✅ ADD THIS
 
 function App() {
   return (
