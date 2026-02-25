@@ -1,12 +1,12 @@
 import { Routes, Route } from "react-router-dom";
 
-import Home from "./pages/Home";
-import LayoutPage from "./pages/LayoutPage";
-import PoLabels from "./pages/PoLabels";
-import WarehouseUpload from "./pages/WarehouseUpload";
-import WarehouseOptimizer from "./pages/WarehouseOptimizer";
-import PurchaseDashboard from "./pages/PurchaseDashboard";
-import ScannerPage from "./pages/ScannerPage";
+import Home from "./tempPages/Home";
+import LayoutPage from "./tempPages/LayoutPage";
+import PoLabels from "./tempPages/PoLabels";
+import WarehouseUpload from "./tempPages/WarehouseUpload";
+import WarehouseOptimizer from "./tempPages/WarehouseOptimizer";
+import PurchaseDashboard from "./tempPages/PurchaseDashboard";
+import ScannerPage from "./tempPages/ScannerPage";
 
 function App() {
   return (
