@@ -70,7 +70,7 @@ def get_flavours(
 
 
 # =====================================================
-# GET LOCATIONS
+# GET LOCATIONS (GROUP CAPACITY LOGIC)
 # =====================================================
 @router.get("/locations")
 def get_locations(
@@ -105,7 +105,7 @@ def get_locations(
 
     params = {}
 
-    # ELECTRA filter
+    # ELECTRA aisle filter
     if aisle:
         base_query += " AND UPPER(ls.location_code) LIKE :aisle_prefix"
         params["aisle_prefix"] = f"ELECTRA {aisle.upper()}%"
@@ -128,14 +128,18 @@ def get_locations(
         base_query += " AND p.brand ILIKE :brand"
         params["brand"] = f"%{brand}%"
 
+    # Powerful multi-word search
     if search:
-        base_query += """
-            AND (
-                ls.sku ILIKE :search
-                OR p.product_name ILIKE :search
-            )
-        """
-        params["search"] = f"%{search}%"
+        words = search.strip().split()
+        for idx, word in enumerate(words):
+            key = f"search_{idx}"
+            base_query += f"""
+                AND (
+                    ls.sku ILIKE :{key}
+                    OR p.product_name ILIKE :{key}
+                )
+            """
+            params[key] = f"%{word}%"
 
     with engine.begin() as conn:
         rows = conn.execute(text(base_query), params).mappings().all()
@@ -147,16 +151,17 @@ def get_locations(
             GROUP BY location_code
         """)).mappings().all()
 
-        overrides = conn.execute(text("""
-            SELECT UPPER(location_code) AS location_code,
-                   max_cartons
-            FROM location_capacity
+        # 🔥 GROUP OVERRIDES (brand + category)
+        group_overrides = conn.execute(text("""
+            SELECT brand, category, max_cartons
+            FROM product_group_capacity
         """)).mappings().all()
 
     sku_map = {r["location_code"]: r["sku_count"] for r in sku_counts}
-    override_map = {
-        r["location_code"]: int(r["max_cartons"] or 0)
-        for r in overrides
+
+    group_map = {
+        (r["brand"], r["category"]): int(r["max_cartons"])
+        for r in group_overrides
     }
 
     grouped = defaultdict(list)
@@ -171,19 +176,33 @@ def get_locations(
         sku_count = sku_map.get(location_code, 0)
         is_mixed = sku_count > 1
 
-        manual_capacity = override_map.get(location_code, 0)
+        brand = items[0]["brand"]
+        category = items[0]["category"]
 
-        if manual_capacity > 0:
-            capacity = manual_capacity
-            capacity_source = "manual"
+        # =====================================================
+        # CAPACITY PRIORITY
+        # 1. Brand + Category override
+        # 2. Product default
+        # 3. System default (30)
+        # =====================================================
 
-        elif not is_mixed:
-            capacity = int(items[0]["pallet_carton_capacity"] or 30)
-            capacity_source = "product"
+        if not is_mixed:
+
+            if (brand, category) in group_map:
+                capacity = group_map[(brand, category)]
+                capacity_source = "group-override"
+
+            elif items[0]["pallet_carton_capacity"]:
+                capacity = int(items[0]["pallet_carton_capacity"])
+                capacity_source = "product-default"
+
+            else:
+                capacity = 30
+                capacity_source = "system-default"
 
         else:
             capacity = 30
-            capacity_source = "mixed"
+            capacity_source = "mixed-default"
 
         if capacity <= 0:
             capacity = 30
@@ -214,3 +233,29 @@ def get_locations(
         })
 
     return result
+
+
+# =====================================================
+# SET GROUP CAPACITY (NEW)
+# =====================================================
+@router.post("/set-group-capacity")
+def set_group_capacity(data: dict):
+
+    query = """
+    INSERT INTO product_group_capacity (brand, category, max_cartons)
+    VALUES (:brand, :category, :max_cartons)
+    ON CONFLICT (brand, category)
+    DO UPDATE SET max_cartons = EXCLUDED.max_cartons;
+    """
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(query),
+            {
+                "brand": data["brand"],
+                "category": data["category"],
+                "max_cartons": data["max_cartons"],
+            },
+        )
+
+    return {"status": "updated"}

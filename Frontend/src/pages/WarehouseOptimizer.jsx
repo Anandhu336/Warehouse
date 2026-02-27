@@ -10,6 +10,7 @@ export default function WarehouseOptimizer() {
     aisle: "ALL",
     category: "",
     brand: "",
+    flavour: "",
     search: "",
     pallet_type: "",
   });
@@ -21,6 +22,11 @@ export default function WarehouseOptimizer() {
 
   const [flavours, setFlavours] = useState([]);
 
+  const [groupCapacity, setGroupCapacity] = useState("");
+
+  // ============================
+  // LOAD FILTER OPTIONS
+  // ============================
   useEffect(() => {
     fetch(`${BASE_URL}/optimizer/filters`)
       .then(res => res.json())
@@ -28,27 +34,12 @@ export default function WarehouseOptimizer() {
       .catch(() => setAvailableFilters({ categories: [], brands: [] }));
   }, []);
 
+  // ============================
+  // LOAD LOCATIONS
+  // ============================
   useEffect(() => {
     loadLocations();
   }, [filters]);
-
-  useEffect(() => {
-    if (!filters.brand && !filters.category) {
-      setFlavours([]);
-      return;
-    }
-
-    const params = new URLSearchParams({
-      brand: filters.brand,
-      category: filters.category,
-    }).toString();
-
-    fetch(`${BASE_URL}/optimizer/flavours?${params}`)
-      .then(res => res.json())
-      .then(data => setFlavours(data.flavours || []))
-      .catch(() => setFlavours([]));
-
-  }, [filters.brand, filters.category]);
 
   const loadLocations = () => {
     setLoading(true);
@@ -70,16 +61,44 @@ export default function WarehouseOptimizer() {
       });
   };
 
-  const updateCapacity = async (location_code, value) => {
-    await fetch(`${BASE_URL}/locations/pallet-capacity`, {
+  // ============================
+  // BRAND → FLAVOURS DROPDOWN
+  // ============================
+  useEffect(() => {
+    if (!filters.brand && !filters.category) {
+      setFlavours([]);
+      return;
+    }
+
+    const params = new URLSearchParams({
+      brand: filters.brand,
+      category: filters.category,
+    }).toString();
+
+    fetch(`${BASE_URL}/optimizer/flavours?${params}`)
+      .then(res => res.json())
+      .then(data => setFlavours(data.flavours || []))
+      .catch(() => setFlavours([]));
+
+  }, [filters.brand, filters.category]);
+
+  // ============================
+  // SET GROUP CAPACITY (Brand + Category)
+  // ============================
+  const updateGroupCapacity = async () => {
+    if (!selected || !groupCapacity) return;
+
+    await fetch(`${BASE_URL}/optimizer/set-group-capacity`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        location_code,
-        max_cartons: Number(value),
+        brand: selected.items[0].brand,
+        category: selected.items[0].category,
+        max_cartons: Number(groupCapacity)
       }),
     });
 
+    setGroupCapacity("");
     loadLocations();
   };
 
@@ -93,6 +112,7 @@ export default function WarehouseOptimizer() {
       <div className="dashboard-header">
         <div className="filter-row">
 
+          {/* AISLE */}
           <select
             value={filters.aisle}
             onChange={e => setFilters({ ...filters, aisle: e.target.value })}
@@ -103,6 +123,7 @@ export default function WarehouseOptimizer() {
             ))}
           </select>
 
+          {/* CATEGORY */}
           <select
             value={filters.category}
             onChange={e => setFilters({ ...filters, category: e.target.value })}
@@ -113,6 +134,7 @@ export default function WarehouseOptimizer() {
             ))}
           </select>
 
+          {/* BRAND */}
           <select
             value={filters.brand}
             onChange={e => setFilters({ ...filters, brand: e.target.value })}
@@ -123,9 +145,10 @@ export default function WarehouseOptimizer() {
             ))}
           </select>
 
+          {/* FLAVOUR */}
           <select
-            value={filters.search}
-            onChange={e => setFilters({ ...filters, search: e.target.value })}
+            value={filters.flavour}
+            onChange={e => setFilters({ ...filters, flavour: e.target.value })}
           >
             <option value="">All Flavours</option>
             {flavours.map((f, i) => (
@@ -133,6 +156,15 @@ export default function WarehouseOptimizer() {
             ))}
           </select>
 
+          {/* POWERFUL SEARCH */}
+          <input
+            type="text"
+            placeholder="Search SKU or Product"
+            value={filters.search}
+            onChange={e => setFilters({ ...filters, search: e.target.value })}
+          />
+
+          {/* PALLET TYPE */}
           <select
             value={filters.pallet_type}
             onChange={e => setFilters({ ...filters, pallet_type: e.target.value })}
@@ -161,6 +193,7 @@ export default function WarehouseOptimizer() {
           ) : (
             <div className="card-grid">
               {locations.map((p, i) => {
+
                 const occupancy = p.occupancy_percent || 0;
 
                 return (
@@ -179,19 +212,11 @@ export default function WarehouseOptimizer() {
                     <div className="capacity-row">
                       <span>
                         Capacity: {p.max_cartons}
-                        {p.capacity_source === "manual" && " (Manual)"}
-                        {p.capacity_source === "product" && " (Product Auto)"}
-                        {p.capacity_source === "mixed" && " (Mixed Default)"}
+                        {p.capacity_source === "group-override" && " (Group Override)"}
+                        {p.capacity_source === "product-default" && " (Product Auto)"}
+                        {p.capacity_source === "system-default" && " (Default 30)"}
+                        {p.capacity_source === "mixed-default" && " (Mixed 30)"}
                       </span>
-
-                      <input
-                        type="number"
-                        placeholder="Manual override"
-                        onBlur={e =>
-                          e.target.value &&
-                          updateCapacity(p.location_code, e.target.value)
-                        }
-                      />
                     </div>
 
                     {p.is_mixed && <div className="flag red">Mixed SKU</div>}
@@ -207,6 +232,7 @@ export default function WarehouseOptimizer() {
           )}
         </div>
 
+        {/* SIDEBAR */}
         {selected && (
           <div className="dashboard-sidebar">
             <h3>{selected.location_code}</h3>
@@ -219,6 +245,30 @@ export default function WarehouseOptimizer() {
                 <div>{item.cartons} cartons</div>
               </div>
             ))}
+
+            {/* GROUP CAPACITY EDITOR */}
+            {!selected.is_mixed && (
+              <div style={{ marginTop: 20 }}>
+                <h4>
+                  Set Capacity for {selected.items[0].brand} - {selected.items[0].category}
+                </h4>
+
+                <input
+                  type="number"
+                  placeholder="Enter new pallet capacity"
+                  value={groupCapacity}
+                  onChange={e => setGroupCapacity(e.target.value)}
+                />
+
+                <button
+                  style={{ marginLeft: 10 }}
+                  onClick={updateGroupCapacity}
+                >
+                  Update
+                </button>
+              </div>
+            )}
+
           </div>
         )}
       </div>
