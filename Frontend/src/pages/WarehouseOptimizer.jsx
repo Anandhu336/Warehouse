@@ -11,17 +11,14 @@ export default function WarehouseOptimizer() {
     category: "",
     brand: "",
     search: "",
-    pallet_type: "",   // ADD THIS
+    pallet_type: "",   // single | mixed | ""
   });
 
-  <select
-    value={filters.pallet_type}
-    onChange={e => setFilters({ ...filters, pallet_type: e.target.value })}
-  >
-    <option key="all" value="">All Pallets</option>
-    <option key="single" value="single">Single SKU Pallet</option>
-    <option key="mixed" value="mixed">Mixed Pallet</option>
-  </select>
+  // 🔥 THIS WAS MISSING
+  const [availableFilters, setAvailableFilters] = useState({
+    categories: [],
+    brands: [],
+  });
 
   useEffect(() => {
     fetch(`${BASE_URL}/optimizer/filters`)
@@ -77,6 +74,7 @@ export default function WarehouseOptimizer() {
       <div className="dashboard-header">
         <div className="filter-row">
 
+          {/* AISLE */}
           <select
             value={filters.aisle}
             onChange={e => setFilters({ ...filters, aisle: e.target.value })}
@@ -87,6 +85,7 @@ export default function WarehouseOptimizer() {
             ))}
           </select>
 
+          {/* CATEGORY */}
           <select
             value={filters.category}
             onChange={e => setFilters({ ...filters, category: e.target.value })}
@@ -97,6 +96,7 @@ export default function WarehouseOptimizer() {
             ))}
           </select>
 
+          {/* BRAND */}
           <select
             value={filters.brand}
             onChange={e => setFilters({ ...filters, brand: e.target.value })}
@@ -107,12 +107,24 @@ export default function WarehouseOptimizer() {
             ))}
           </select>
 
+          {/* 🔥 PALLET TYPE FILTER */}
+          <select
+            value={filters.pallet_type}
+            onChange={e => setFilters({ ...filters, pallet_type: e.target.value })}
+          >
+            <option value="">All Pallets</option>
+            <option value="single">Single SKU Pallet</option>
+            <option value="mixed">Mixed Pallet</option>
+          </select>
+
+          {/* SEARCH */}
           <input
             type="text"
             placeholder="Search SKU or Product"
             value={filters.search}
             onChange={e => setFilters({ ...filters, search: e.target.value })}
           />
+
         </div>
 
         <div className="dashboard-stats">
