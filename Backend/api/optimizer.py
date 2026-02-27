@@ -89,7 +89,6 @@ def get_locations(
             p.product_name,
             p.brand,
             p.category,
-            p.pallet_carton_capacity,
             FLOOR(
                 CASE
                     WHEN p.units_per_carton IS NULL OR p.units_per_carton = 0
@@ -104,9 +103,7 @@ def get_locations(
 
     params = {}
 
-    # =====================
     # AISLE FILTER
-    # =====================
     if aisle:
         query += " AND UPPER(ls.location_code) LIKE :aisle"
         params["aisle"] = f"ELECTRA {aisle.upper()}%"
@@ -133,7 +130,7 @@ def get_locations(
         query += " AND p.product_name ILIKE :flavour"
         params["flavour"] = f"%{flavour}%"
 
-    # Powerful search
+    # SMART SEARCH (sku + name + location)
     if search:
         words = search.strip().split()
         for i, word in enumerate(words):
@@ -142,6 +139,7 @@ def get_locations(
                 AND (
                     ls.sku ILIKE :{key}
                     OR p.product_name ILIKE :{key}
+                    OR UPPER(ls.location_code) ILIKE :{key}
                 )
             """
             params[key] = f"%{word}%"
@@ -195,21 +193,13 @@ def get_locations(
         brand_val = items[0]["brand"].strip().lower()
         category_val = items[0]["category"].strip().lower()
 
-        # =====================
-        # CAPACITY PRIORITY
-        # 1. Location override
-        # 2. Group override
-        # 3. Default 30
-        # =====================
-
+        # PRIORITY
         if location_code in location_map:
             capacity = location_map[location_code]
             source = "location-override"
-
         elif (brand_val, category_val) in group_map:
             capacity = group_map[(brand_val, category_val)]
             source = "group-override"
-
         else:
             capacity = 30
             source = "default"
@@ -232,57 +222,31 @@ def get_locations(
             "occupancy_percent": occupancy,
             "is_mixed": is_mixed,
             "needs_merge": occupancy < 60,
-            "items": [
-                {
-                    "sku": i["sku"],
-                    "product_name": i["product_name"],
-                    "brand": i["brand"],
-                    "category": i["category"],
-                    "cartons": int(i["cartons"] or 0),
-                }
-                for i in items
-            ],
+            "items": items,
         })
 
     return result
 
 
-# =====================================================
-# SET GROUP CAPACITY
-# =====================================================
 @router.post("/set-group-capacity")
 def set_group_capacity(data: dict):
-
     with engine.begin() as conn:
         conn.execute(text("""
             INSERT INTO product_group_capacity (brand, category, max_cartons)
             VALUES (:brand, :category, :max_cartons)
             ON CONFLICT (brand, category)
             DO UPDATE SET max_cartons = EXCLUDED.max_cartons
-        """), {
-            "brand": data["brand"],
-            "category": data["category"],
-            "max_cartons": data["max_cartons"],
-        })
-
+        """), data)
     return {"status": "updated"}
 
 
-# =====================================================
-# SET LOCATION CAPACITY (ADD THIS HERE)
-# =====================================================
 @router.post("/set-location-capacity")
 def set_location_capacity(data: dict):
-
     with engine.begin() as conn:
         conn.execute(text("""
             INSERT INTO location_capacity (location_code, max_cartons)
             VALUES (:location_code, :max_cartons)
             ON CONFLICT (location_code)
             DO UPDATE SET max_cartons = EXCLUDED.max_cartons
-        """), {
-            "location_code": data["location_code"],
-            "max_cartons": data["max_cartons"],
-        })
-
+        """), data)
     return {"status": "updated"}
