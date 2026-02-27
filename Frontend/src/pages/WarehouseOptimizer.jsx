@@ -11,12 +11,17 @@ export default function WarehouseOptimizer() {
     category: "",
     brand: "",
     search: "",
+    pallet_type: "",   // ADD THIS
   });
 
-  const [availableFilters, setAvailableFilters] = useState({
-    categories: [],
-    brands: [],
-  });
+  <select
+    value={filters.pallet_type}
+    onChange={e => setFilters({ ...filters, pallet_type: e.target.value })}
+  >
+    <option key="all" value="">All Pallets</option>
+    <option key="single" value="single">Single SKU Pallet</option>
+    <option key="mixed" value="mixed">Mixed Pallet</option>
+  </select>
 
   useEffect(() => {
     fetch(`${BASE_URL}/optimizer/filters`)

@@ -7,9 +7,8 @@ router = APIRouter(prefix="/optimizer", tags=["Optimizer"])
 
 ALLOWED_AISLES = ["P", "Q", "R", "S", "T"]
 
-
 # =====================================================
-# FILTER OPTIONS (Optimized + Safe)
+# FILTER OPTIONS
 # =====================================================
 @router.get("/filters")
 def get_filters():
@@ -44,7 +43,7 @@ def get_filters():
 
 
 # =====================================================
-# GET LOCATIONS
+# GET LOCATIONS (HYBRID CAPACITY LOGIC)
 # =====================================================
 @router.get("/locations")
 def get_locations(
@@ -52,7 +51,9 @@ def get_locations(
     category: str | None = Query(None),
     brand: str | None = Query(None),
     search: str | None = Query(None),
+    pallet_type: str | None = Query(None),
 ):
+
     base_query = """
         SELECT
             UPPER(ls.location_code) AS location_code,
@@ -72,6 +73,7 @@ def get_locations(
             p.product_name,
             p.brand,
             p.category,
+            p.pallet_carton_capacity,
 
             FLOOR(
                 CASE
@@ -79,33 +81,18 @@ def get_locations(
                     THEN 0
                     ELSE ls.units::float / p.units_per_carton
                 END
-            ) AS cartons,
-
-            COALESCE(lc.max_cartons, prc.max_cartons, 42) AS max_cartons
+            ) AS cartons
 
         FROM location_stock ls
         JOIN products p ON p.sku = ls.sku
-
-        LEFT JOIN location_capacity lc
-            ON UPPER(lc.location_code) = UPPER(ls.location_code)
-
-        LEFT JOIN product_rack_capacity prc
-            ON prc.sku = ls.sku
-           AND prc.rack_type =
-                split_part(split_part(ls.location_code, ' ', 2), '-', 2)
-
         WHERE 1=1
     """
 
     params = {}
 
-    # =====================================================
-    # STRICT ELECTRA AISLE FILTER
-    # =====================================================
+    # ELECTRA aisle filter
     if aisle:
-        base_query += """
-            AND UPPER(ls.location_code) LIKE :aisle_prefix
-        """
+        base_query += " AND UPPER(ls.location_code) LIKE :aisle_prefix"
         params["aisle_prefix"] = f"ELECTRA {aisle.upper()}%"
     else:
         base_query += """
@@ -126,18 +113,19 @@ def get_locations(
         base_query += " AND p.brand ILIKE :brand"
         params["brand"] = f"%{brand}%"
 
+    # Multi-word search
     if search:
-        base_query += """
-            AND (
-                ls.sku ILIKE :search
-                OR p.product_name ILIKE :search
-            )
-        """
-        params["search"] = f"%{search}%"
+        words = search.strip().split()
+        for idx, word in enumerate(words):
+            key = f"search_{idx}"
+            base_query += f"""
+                AND (
+                    ls.sku ILIKE :{key}
+                    OR p.product_name ILIKE :{key}
+                )
+            """
+            params[key] = f"%{word}%"
 
-    # =====================================================
-    # PROPER NUMERIC WAREHOUSE SORTING
-    # =====================================================
     base_query += """
         AND (
             CASE
@@ -146,17 +134,6 @@ def get_locations(
                 ELSE ls.units::float / p.units_per_carton
             END
         ) > 0
-        ORDER BY
-            LEFT(split_part(split_part(ls.location_code, ' ', 2), '-', 1), 1),
-            CAST(
-                regexp_replace(
-                    split_part(split_part(ls.location_code, ' ', 2), '-', 1),
-                    '[^0-9]',
-                    '',
-                    'g'
-                ) AS INTEGER
-            ),
-            split_part(split_part(ls.location_code, ' ', 2), '-', 2)
     """
 
     with engine.begin() as conn:
@@ -169,13 +146,17 @@ def get_locations(
             GROUP BY location_code
         """)).mappings().all()
 
-    sku_map = {
-        row["location_code"]: row["sku_count"]
-        for row in sku_check
-    }
+        # Manual overrides
+        overrides = conn.execute(text("""
+            SELECT UPPER(location_code) AS location_code,
+                   max_cartons
+            FROM location_capacity
+        """)).mappings().all()
+
+    sku_map = {r["location_code"]: r["sku_count"] for r in sku_check}
+    override_map = {r["location_code"]: r["max_cartons"] for r in overrides}
 
     grouped = defaultdict(list)
-
     for row in rows:
         grouped[row["location_code"]].append(row)
 
@@ -184,16 +165,25 @@ def get_locations(
     for location_code, items in grouped.items():
 
         total_cartons = sum(int(i["cartons"] or 0) for i in items)
-        capacity = int(items[0]["max_cartons"] or 42)
-
-        occupancy_percent = (
-            round((total_cartons / capacity) * 100, 1)
-            if capacity > 0 else 0
-        )
-
         real_sku_count = sku_map.get(location_code, 0)
         is_mixed = real_sku_count > 1
+
+        # 🔥 HYBRID CAPACITY LOGIC
+        if location_code in override_map:
+            capacity = override_map[location_code]
+        elif not is_mixed:
+            capacity = int(items[0]["pallet_carton_capacity"] or 30)
+        else:
+            capacity = 30
+
+        occupancy_percent = round((total_cartons / capacity) * 100, 1) if capacity > 0 else 0
         needs_merge = occupancy_percent < 60
+
+        # Pallet filter
+        if pallet_type == "mixed" and not is_mixed:
+            continue
+        if pallet_type == "single" and is_mixed:
+            continue
 
         result.append({
             "location_code": location_code,
@@ -215,36 +205,6 @@ def get_locations(
         })
 
     return result
-
-
-# =====================================================
-# SET PRODUCT RACK CAPACITY
-# =====================================================
-@router.post("/set-product-rack-capacity")
-def set_product_rack_capacity(
-    sku: str,
-    rack_type: str,
-    max_cartons: int
-):
-    if max_cartons <= 0:
-        return {"error": "Capacity must be greater than 0"}
-
-    with engine.begin() as conn:
-        conn.execute(
-            text("""
-                INSERT INTO product_rack_capacity (sku, rack_type, max_cartons)
-                VALUES (:sku, :rack_type, :max_cartons)
-                ON CONFLICT (sku, rack_type)
-                DO UPDATE SET max_cartons = EXCLUDED.max_cartons
-            """),
-            {
-                "sku": sku.strip(),
-                "rack_type": rack_type.strip().upper(),
-                "max_cartons": max_cartons
-            }
-        )
-
-    return {"status": "updated"}
 
 
 # =====================================================
