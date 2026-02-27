@@ -38,7 +38,7 @@ def get_filters():
 
 
 # =====================================================
-# BRAND → FLAVOUR DROPDOWN
+# BRAND → FLAVOUR
 # =====================================================
 @router.get("/flavours")
 def get_flavours(
@@ -82,7 +82,7 @@ def get_locations(
     pallet_type: str | None = Query(None),
 ):
 
-    base_query = """
+    query = """
         SELECT
             UPPER(ls.location_code) AS location_code,
             ls.sku,
@@ -90,7 +90,6 @@ def get_locations(
             p.brand,
             p.category,
             p.pallet_carton_capacity,
-
             FLOOR(
                 CASE
                     WHEN p.units_per_carton IS NULL OR p.units_per_carton = 0
@@ -98,7 +97,6 @@ def get_locations(
                     ELSE ls.units::float / p.units_per_carton
                 END
             ) AS cartons
-
         FROM location_stock ls
         JOIN products p ON p.sku = ls.sku
         WHERE 1=1
@@ -106,12 +104,12 @@ def get_locations(
 
     params = {}
 
-    # ELECTRA aisle filter
+    # Aisle filter
     if aisle:
-        base_query += " AND UPPER(ls.location_code) LIKE :aisle_prefix"
-        params["aisle_prefix"] = f"ELECTRA {aisle.upper()}%"
+        query += " AND UPPER(ls.location_code) LIKE :aisle"
+        params["aisle"] = f"ELECTRA {aisle.upper()}%"
     else:
-        base_query += """
+        query += """
             AND (
                 UPPER(ls.location_code) LIKE 'ELECTRA P%' OR
                 UPPER(ls.location_code) LIKE 'ELECTRA Q%' OR
@@ -122,22 +120,23 @@ def get_locations(
         """
 
     if category:
-        base_query += " AND p.category ILIKE :category"
+        query += " AND p.category ILIKE :category"
         params["category"] = f"%{category}%"
 
     if brand:
-        base_query += " AND p.brand ILIKE :brand"
+        query += " AND p.brand ILIKE :brand"
         params["brand"] = f"%{brand}%"
 
     if flavour:
-        base_query += " AND p.product_name ILIKE :flavour"
+        query += " AND p.product_name ILIKE :flavour"
         params["flavour"] = f"%{flavour}%"
 
+    # Powerful multi-word search
     if search:
         words = search.strip().split()
-        for idx, word in enumerate(words):
-            key = f"search_{idx}"
-            base_query += f"""
+        for i, word in enumerate(words):
+            key = f"search_{i}"
+            query += f"""
                 AND (
                     ls.sku ILIKE :{key}
                     OR p.product_name ILIKE :{key}
@@ -146,7 +145,7 @@ def get_locations(
             params[key] = f"%{word}%"
 
     with engine.begin() as conn:
-        rows = conn.execute(text(base_query), params).mappings().all()
+        rows = conn.execute(text(query), params).mappings().all()
 
         sku_counts = conn.execute(text("""
             SELECT UPPER(location_code) AS location_code,
@@ -162,9 +161,10 @@ def get_locations(
 
     sku_map = {r["location_code"]: r["sku_count"] for r in sku_counts}
 
-    # CASE SAFE MAP
+    # Normalize group overrides
     group_map = {
-        (r["brand"].strip().lower(), r["category"].strip().lower()): int(r["max_cartons"])
+        (r["brand"].strip().lower(), r["category"].strip().lower()):
+        int(r["max_cartons"])
         for r in group_overrides
     }
 
@@ -183,28 +183,28 @@ def get_locations(
         brand_val = items[0]["brand"].strip().lower()
         category_val = items[0]["category"].strip().lower()
 
-        if not is_mixed:
+        # CAPACITY LOGIC
+        if is_mixed:
+            capacity = 30
+            source = "mixed-default"
 
+        else:
             if (brand_val, category_val) in group_map:
                 capacity = group_map[(brand_val, category_val)]
-                capacity_source = "group-override"
+                source = "group-override"
 
             elif items[0]["pallet_carton_capacity"]:
                 capacity = int(items[0]["pallet_carton_capacity"])
-                capacity_source = "product-default"
+                source = "product-default"
 
             else:
                 capacity = 30
-                capacity_source = "system-default"
-
-        else:
-            capacity = 30
-            capacity_source = "mixed-default"
+                source = "system-default"
 
         if capacity <= 0:
             capacity = 30
 
-        occupancy_percent = round((total_cartons / capacity) * 100, 1)
+        occupancy = round((total_cartons / capacity) * 100, 1)
 
         if pallet_type == "mixed" and not is_mixed:
             continue
@@ -215,10 +215,10 @@ def get_locations(
             "location_code": location_code,
             "total_cartons": total_cartons,
             "max_cartons": capacity,
-            "capacity_source": capacity_source,
-            "occupancy_percent": occupancy_percent,
+            "capacity_source": source,
+            "occupancy_percent": occupancy,
             "is_mixed": is_mixed,
-            "needs_merge": occupancy_percent < 60,
+            "needs_merge": occupancy < 60,
             "items": [
                 {
                     "sku": i["sku"],
@@ -240,21 +240,16 @@ def get_locations(
 @router.post("/set-group-capacity")
 def set_group_capacity(data: dict):
 
-    query = """
-    INSERT INTO product_group_capacity (brand, category, max_cartons)
-    VALUES (:brand, :category, :max_cartons)
-    ON CONFLICT (brand, category)
-    DO UPDATE SET max_cartons = EXCLUDED.max_cartons;
-    """
-
     with engine.begin() as conn:
-        conn.execute(
-            text(query),
-            {
-                "brand": data["brand"],
-                "category": data["category"],
-                "max_cartons": data["max_cartons"],
-            },
-        )
+        conn.execute(text("""
+            INSERT INTO product_group_capacity (brand, category, max_cartons)
+            VALUES (:brand, :category, :max_cartons)
+            ON CONFLICT (brand, category)
+            DO UPDATE SET max_cartons = EXCLUDED.max_cartons
+        """), {
+            "brand": data["brand"],
+            "category": data["category"],
+            "max_cartons": data["max_cartons"],
+        })
 
     return {"status": "updated"}

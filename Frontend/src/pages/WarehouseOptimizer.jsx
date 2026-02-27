@@ -24,16 +24,46 @@ export default function WarehouseOptimizer() {
   const [flavours, setFlavours] = useState([]);
   const [groupCapacity, setGroupCapacity] = useState("");
 
+  // =========================
+  // Load filter dropdowns
+  // =========================
   useEffect(() => {
     fetch(`${BASE_URL}/optimizer/filters`)
       .then(res => res.json())
-      .then(data => setAvailableFilters(data))
+      .then(data => setAvailableFilters(data || { categories: [], brands: [] }))
+      .catch(() => setAvailableFilters({ categories: [], brands: [] }));
   }, []);
 
+  // =========================
+  // Load locations
+  // =========================
   useEffect(() => {
     loadLocations();
   }, [filters]);
 
+  const loadLocations = () => {
+    setLoading(true);
+
+    const params = { ...filters };
+    if (params.aisle === "ALL") delete params.aisle;
+
+    const query = new URLSearchParams(params).toString();
+
+    fetch(`${BASE_URL}/optimizer/locations?${query}`)
+      .then(res => res.json())
+      .then(data => {
+        setLocations(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLocations([]);
+        setLoading(false);
+      });
+  };
+
+  // =========================
+  // Brand → Flavour logic
+  // =========================
   useEffect(() => {
 
     if (!filters.brand && !filters.category) {
@@ -48,26 +78,14 @@ export default function WarehouseOptimizer() {
 
     fetch(`${BASE_URL}/optimizer/flavours?${params}`)
       .then(res => res.json())
-      .then(data => setFlavours(data.flavours || []));
+      .then(data => setFlavours(data.flavours || []))
+      .catch(() => setFlavours([]));
 
   }, [filters.brand, filters.category]);
 
-  const loadLocations = () => {
-    setLoading(true);
-
-    const params = { ...filters };
-    if (params.aisle === "ALL") delete params.aisle;
-
-    const query = new URLSearchParams(params).toString();
-
-    fetch(`${BASE_URL}/optimizer/locations?${query}`)
-      .then(res => res.json())
-      .then(data => {
-        setLocations(data);
-        setLoading(false);
-      });
-  };
-
+  // =========================
+  // Group capacity update
+  // =========================
   const updateGroupCapacity = async () => {
 
     if (!selected || !groupCapacity) return;
@@ -86,68 +104,183 @@ export default function WarehouseOptimizer() {
     loadLocations();
   };
 
+  const totalLocations = locations.length;
+  const mixedCount = locations.filter(l => l.is_mixed).length;
+  const lowCount = locations.filter(l => l.needs_merge).length;
+
   return (
     <div className="dashboard-wrapper">
 
-      <div className="filter-row">
+      {/* ================= HEADER ================= */}
+      <div className="dashboard-header">
 
-        <select value={filters.category}
-          onChange={e => setFilters({ ...filters, category: e.target.value, flavour: "" })}>
-          <option value="">All Categories</option>
-          {availableFilters.categories.map((c,i)=>
-            <option key={i} value={c}>{c}</option>
-          )}
-        </select>
+        <div className="filter-row">
 
-        <select value={filters.brand}
-          onChange={e => setFilters({ ...filters, brand: e.target.value, flavour: "" })}>
-          <option value="">All Brands</option>
-          {availableFilters.brands.map((b,i)=>
-            <option key={i} value={b}>{b}</option>
-          )}
-        </select>
+          <select
+            value={filters.category}
+            onChange={e =>
+              setFilters({ ...filters, category: e.target.value, flavour: "" })
+            }
+          >
+            <option value="">All Categories</option>
+            {availableFilters.categories.map((c, i) => (
+              <option key={i} value={c}>{c}</option>
+            ))}
+          </select>
 
-        <select value={filters.flavour}
-          onChange={e => setFilters({ ...filters, flavour: e.target.value })}>
-          <option value="">All Flavours</option>
-          {flavours.map((f,i)=>
-            <option key={i} value={f}>{f}</option>
-          )}
-        </select>
+          <select
+            value={filters.brand}
+            onChange={e =>
+              setFilters({ ...filters, brand: e.target.value, flavour: "" })
+            }
+          >
+            <option value="">All Brands</option>
+            {availableFilters.brands.map((b, i) => (
+              <option key={i} value={b}>{b}</option>
+            ))}
+          </select>
 
-        <input
-          placeholder="Search SKU or Product"
-          value={filters.search}
-          onChange={e => setFilters({ ...filters, search: e.target.value })}
-        />
-
-      </div>
-
-      <div className="card-grid">
-        {locations.map((p,i)=>(
-          <div key={i} onClick={()=>setSelected(p)}>
-            <strong>{p.location_code}</strong>
-            <div>{p.occupancy_percent}%</div>
-            <div>Capacity: {p.max_cartons}</div>
-          </div>
-        ))}
-      </div>
-
-      {selected && !selected.is_mixed && (
-        <div>
-          <h4>
-            Set Capacity for {selected.items[0].brand} - {selected.items[0].category}
-          </h4>
+          <select
+            value={filters.flavour}
+            onChange={e =>
+              setFilters({ ...filters, flavour: e.target.value })
+            }
+          >
+            <option value="">All Flavours</option>
+            {flavours.map((f, i) => (
+              <option key={i} value={f}>{f}</option>
+            ))}
+          </select>
 
           <input
-            type="number"
-            value={groupCapacity}
-            onChange={e => setGroupCapacity(e.target.value)}
+            type="text"
+            placeholder="Search SKU or Product"
+            value={filters.search}
+            onChange={e =>
+              setFilters({ ...filters, search: e.target.value })
+            }
           />
 
-          <button onClick={updateGroupCapacity}>Update</button>
+          <select
+            value={filters.pallet_type}
+            onChange={e =>
+              setFilters({ ...filters, pallet_type: e.target.value })
+            }
+          >
+            <option value="">All Pallets</option>
+            <option value="single">Single SKU</option>
+            <option value="mixed">Mixed</option>
+          </select>
+
         </div>
-      )}
+
+        <div className="dashboard-stats">
+          <div>Total Locations: {totalLocations}</div>
+          <div>Mixed Pallets: {mixedCount}</div>
+          <div>Low Occupancy: {lowCount}</div>
+        </div>
+      </div>
+
+      {/* ================= BODY ================= */}
+      <div className="dashboard-body">
+
+        {/* ===== GRID ===== */}
+        <div className="dashboard-grid">
+
+          {loading ? (
+            <p>Loading...</p>
+          ) : locations.length === 0 ? (
+            <p>No data found</p>
+          ) : (
+            <div className="card-grid">
+
+              {locations.map((p, i) => {
+
+                const occupancy = p.occupancy_percent || 0;
+
+                return (
+                  <div
+                    key={i}
+                    className={`optimizer-card 
+                      ${p.is_mixed ? "mixed" : ""} 
+                      ${p.needs_merge ? "low" : ""}`}
+                    onClick={() => setSelected(p)}
+                  >
+
+                    <div className="opt-header">
+                      <strong>{p.location_code}</strong>
+                      <span>{occupancy}%</span>
+                    </div>
+
+                    <div>Cartons: {p.total_cartons}</div>
+
+                    <div>
+                      Capacity: {p.max_cartons}
+                      {p.capacity_source === "group-override" && " (Override)"}
+                      {p.capacity_source === "product-default" && " (Product)"}
+                      {p.capacity_source === "system-default" && " (Default 30)"}
+                      {p.capacity_source === "mixed-default" && " (Mixed 30)"}
+                    </div>
+
+                    {p.is_mixed && (
+                      <div className="flag red">Mixed SKU</div>
+                    )}
+
+                    {p.needs_merge && (
+                      <div className="flag yellow">
+                        Low Occupancy — Merge Suggested
+                      </div>
+                    )}
+
+                  </div>
+                );
+              })}
+
+            </div>
+          )}
+        </div>
+
+        {/* ===== SIDEBAR ===== */}
+        {selected && (
+          <div className="dashboard-sidebar">
+
+            <h3>{selected.location_code}</h3>
+            <div>Occupancy: {selected.occupancy_percent}%</div>
+
+            <h4>Products</h4>
+
+            {selected.items.map((item, idx) => (
+              <div key={idx} className="sku-row">
+                <div>{item.product_name}</div>
+                <div>{item.cartons} cartons</div>
+              </div>
+            ))}
+
+            {!selected.is_mixed && (
+              <div style={{ marginTop: 20 }}>
+                <h4>
+                  Set Capacity for {selected.items[0].brand} - {selected.items[0].category}
+                </h4>
+
+                <input
+                  type="number"
+                  value={groupCapacity}
+                  onChange={e => setGroupCapacity(e.target.value)}
+                />
+
+                <button
+                  style={{ marginLeft: 10 }}
+                  onClick={updateGroupCapacity}
+                >
+                  Update
+                </button>
+              </div>
+            )}
+
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }
