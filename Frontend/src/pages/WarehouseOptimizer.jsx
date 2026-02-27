@@ -23,9 +23,10 @@ export default function WarehouseOptimizer() {
 
   const [flavours, setFlavours] = useState([]);
   const [groupCapacity, setGroupCapacity] = useState("");
+  const [locationCapacity, setLocationCapacity] = useState("");
 
   // =========================
-  // Load filter dropdowns
+  // LOAD FILTERS
   // =========================
   useEffect(() => {
     fetch(`${BASE_URL}/optimizer/filters`)
@@ -35,7 +36,7 @@ export default function WarehouseOptimizer() {
   }, []);
 
   // =========================
-  // Load locations
+  // LOAD LOCATIONS
   // =========================
   useEffect(() => {
     loadLocations();
@@ -62,7 +63,7 @@ export default function WarehouseOptimizer() {
   };
 
   // =========================
-  // Brand → Flavour logic
+  // BRAND → FLAVOURS
   // =========================
   useEffect(() => {
 
@@ -84,7 +85,7 @@ export default function WarehouseOptimizer() {
   }, [filters.brand, filters.category]);
 
   // =========================
-  // Group capacity update
+  // GROUP CAPACITY UPDATE
   // =========================
   const updateGroupCapacity = async () => {
 
@@ -104,6 +105,26 @@ export default function WarehouseOptimizer() {
     loadLocations();
   };
 
+  // =========================
+  // LOCATION CAPACITY UPDATE
+  // =========================
+  const updateLocationCapacity = async () => {
+
+    if (!selected || !locationCapacity) return;
+
+    await fetch(`${BASE_URL}/optimizer/set-location-capacity`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location_code: selected.location_code,
+        max_cartons: Number(locationCapacity)
+      }),
+    });
+
+    setLocationCapacity("");
+    loadLocations();
+  };
+
   const totalLocations = locations.length;
   const mixedCount = locations.filter(l => l.is_mixed).length;
   const lowCount = locations.filter(l => l.needs_merge).length;
@@ -116,6 +137,20 @@ export default function WarehouseOptimizer() {
 
         <div className="filter-row">
 
+          {/* AISLE */}
+          <select
+            value={filters.aisle}
+            onChange={e =>
+              setFilters({ ...filters, aisle: e.target.value })
+            }
+          >
+            <option value="ALL">All Aisles</option>
+            {["P","Q","R","S","T"].map(a => (
+              <option key={a} value={a}>{a}</option>
+            ))}
+          </select>
+
+          {/* CATEGORY */}
           <select
             value={filters.category}
             onChange={e =>
@@ -128,6 +163,7 @@ export default function WarehouseOptimizer() {
             ))}
           </select>
 
+          {/* BRAND */}
           <select
             value={filters.brand}
             onChange={e =>
@@ -140,6 +176,7 @@ export default function WarehouseOptimizer() {
             ))}
           </select>
 
+          {/* FLAVOUR */}
           <select
             value={filters.flavour}
             onChange={e =>
@@ -152,6 +189,7 @@ export default function WarehouseOptimizer() {
             ))}
           </select>
 
+          {/* SEARCH */}
           <input
             type="text"
             placeholder="Search SKU or Product"
@@ -161,6 +199,7 @@ export default function WarehouseOptimizer() {
             }
           />
 
+          {/* PALLET TYPE */}
           <select
             value={filters.pallet_type}
             onChange={e =>
@@ -184,16 +223,14 @@ export default function WarehouseOptimizer() {
       {/* ================= BODY ================= */}
       <div className="dashboard-body">
 
-        {/* ===== GRID ===== */}
+        {/* GRID */}
         <div className="dashboard-grid">
-
           {loading ? (
             <p>Loading...</p>
           ) : locations.length === 0 ? (
             <p>No data found</p>
           ) : (
             <div className="card-grid">
-
               {locations.map((p, i) => {
 
                 const occupancy = p.occupancy_percent || 0;
@@ -206,7 +243,6 @@ export default function WarehouseOptimizer() {
                       ${p.needs_merge ? "low" : ""}`}
                     onClick={() => setSelected(p)}
                   >
-
                     <div className="opt-header">
                       <strong>{p.location_code}</strong>
                       <span>{occupancy}%</span>
@@ -216,10 +252,9 @@ export default function WarehouseOptimizer() {
 
                     <div>
                       Capacity: {p.max_cartons}
-                      {p.capacity_source === "group-override" && " (Override)"}
-                      {p.capacity_source === "product-default" && " (Product)"}
-                      {p.capacity_source === "system-default" && " (Default 30)"}
-                      {p.capacity_source === "mixed-default" && " (Mixed 30)"}
+                      {p.capacity_source === "location-override" && " (Manual Pallet)"}
+                      {p.capacity_source === "group-override" && " (Brand Override)"}
+                      {p.capacity_source === "default" && " (Default 30)"}
                     </div>
 
                     {p.is_mixed && (
@@ -235,12 +270,11 @@ export default function WarehouseOptimizer() {
                   </div>
                 );
               })}
-
             </div>
           )}
         </div>
 
-        {/* ===== SIDEBAR ===== */}
+        {/* SIDEBAR */}
         {selected && (
           <div className="dashboard-sidebar">
 
@@ -256,26 +290,43 @@ export default function WarehouseOptimizer() {
               </div>
             ))}
 
-            {!selected.is_mixed && (
-              <div style={{ marginTop: 20 }}>
-                <h4>
-                  Set Capacity for {selected.items[0].brand} - {selected.items[0].category}
-                </h4>
+            {/* GROUP OVERRIDE */}
+            <div style={{ marginTop: 20 }}>
+              <h4>
+                Set Capacity for {selected.items[0].brand} - {selected.items[0].category}
+              </h4>
 
-                <input
-                  type="number"
-                  value={groupCapacity}
-                  onChange={e => setGroupCapacity(e.target.value)}
-                />
+              <input
+                type="number"
+                value={groupCapacity}
+                onChange={e => setGroupCapacity(e.target.value)}
+              />
 
-                <button
-                  style={{ marginLeft: 10 }}
-                  onClick={updateGroupCapacity}
-                >
-                  Update
-                </button>
-              </div>
-            )}
+              <button
+                style={{ marginLeft: 10 }}
+                onClick={updateGroupCapacity}
+              >
+                Update
+              </button>
+            </div>
+
+            {/* LOCATION OVERRIDE */}
+            <div style={{ marginTop: 20 }}>
+              <h4>Set Capacity For This Pallet Only</h4>
+
+              <input
+                type="number"
+                value={locationCapacity}
+                onChange={e => setLocationCapacity(e.target.value)}
+              />
+
+              <button
+                style={{ marginLeft: 10 }}
+                onClick={updateLocationCapacity}
+              >
+                Update
+              </button>
+            </div>
 
           </div>
         )}

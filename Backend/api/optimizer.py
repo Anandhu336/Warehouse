@@ -104,7 +104,9 @@ def get_locations(
 
     params = {}
 
-    # Aisle filter
+    # =====================
+    # AISLE FILTER
+    # =====================
     if aisle:
         query += " AND UPPER(ls.location_code) LIKE :aisle"
         params["aisle"] = f"ELECTRA {aisle.upper()}%"
@@ -131,7 +133,7 @@ def get_locations(
         query += " AND p.product_name ILIKE :flavour"
         params["flavour"] = f"%{flavour}%"
 
-    # Powerful multi-word search
+    # Powerful search
     if search:
         words = search.strip().split()
         for i, word in enumerate(words):
@@ -159,13 +161,23 @@ def get_locations(
             FROM product_group_capacity
         """)).mappings().all()
 
+        location_overrides = conn.execute(text("""
+            SELECT UPPER(location_code) AS location_code,
+                   max_cartons
+            FROM location_capacity
+        """)).mappings().all()
+
     sku_map = {r["location_code"]: r["sku_count"] for r in sku_counts}
 
-    # Normalize group overrides
     group_map = {
         (r["brand"].strip().lower(), r["category"].strip().lower()):
         int(r["max_cartons"])
         for r in group_overrides
+    }
+
+    location_map = {
+        r["location_code"]: int(r["max_cartons"])
+        for r in location_overrides
     }
 
     grouped = defaultdict(list)
@@ -183,23 +195,24 @@ def get_locations(
         brand_val = items[0]["brand"].strip().lower()
         category_val = items[0]["category"].strip().lower()
 
-        # CAPACITY LOGIC
-        if is_mixed:
-            capacity = 30
-            source = "mixed-default"
+        # =====================
+        # CAPACITY PRIORITY
+        # 1. Location override
+        # 2. Group override
+        # 3. Default 30
+        # =====================
+
+        if location_code in location_map:
+            capacity = location_map[location_code]
+            source = "location-override"
+
+        elif (brand_val, category_val) in group_map:
+            capacity = group_map[(brand_val, category_val)]
+            source = "group-override"
 
         else:
-            if (brand_val, category_val) in group_map:
-                capacity = group_map[(brand_val, category_val)]
-                source = "group-override"
-
-            elif items[0]["pallet_carton_capacity"]:
-                capacity = int(items[0]["pallet_carton_capacity"])
-                source = "product-default"
-
-            else:
-                capacity = 30
-                source = "system-default"
+            capacity = 30
+            source = "default"
 
         if capacity <= 0:
             capacity = 30
@@ -249,6 +262,26 @@ def set_group_capacity(data: dict):
         """), {
             "brand": data["brand"],
             "category": data["category"],
+            "max_cartons": data["max_cartons"],
+        })
+
+    return {"status": "updated"}
+
+
+# =====================================================
+# SET LOCATION CAPACITY (ADD THIS HERE)
+# =====================================================
+@router.post("/set-location-capacity")
+def set_location_capacity(data: dict):
+
+    with engine.begin() as conn:
+        conn.execute(text("""
+            INSERT INTO location_capacity (location_code, max_cartons)
+            VALUES (:location_code, :max_cartons)
+            ON CONFLICT (location_code)
+            DO UPDATE SET max_cartons = EXCLUDED.max_cartons
+        """), {
+            "location_code": data["location_code"],
             "max_cartons": data["max_cartons"],
         })
 
