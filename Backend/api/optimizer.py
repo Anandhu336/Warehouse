@@ -7,43 +7,70 @@ router = APIRouter(prefix="/optimizer", tags=["Optimizer"])
 
 ALLOWED_AISLES = ["P", "Q", "R", "S", "T"]
 
+
 # =====================================================
 # FILTER OPTIONS
 # =====================================================
 @router.get("/filters")
 def get_filters():
-    try:
-        with engine.begin() as conn:
+    with engine.begin() as conn:
 
-            categories = conn.execute(text("""
-                SELECT category
-                FROM products
-                WHERE category IS NOT NULL
-                  AND TRIM(category) <> ''
-                GROUP BY category
-                ORDER BY category
-            """)).scalars().all()
+        categories = conn.execute(text("""
+            SELECT DISTINCT category
+            FROM products
+            WHERE category IS NOT NULL
+              AND TRIM(category) <> ''
+            ORDER BY category
+        """)).scalars().all()
 
-            brands = conn.execute(text("""
-                SELECT brand
-                FROM products
-                WHERE brand IS NOT NULL
-                  AND TRIM(brand) <> ''
-                GROUP BY brand
-                ORDER BY brand
-            """)).scalars().all()
+        brands = conn.execute(text("""
+            SELECT DISTINCT brand
+            FROM products
+            WHERE brand IS NOT NULL
+              AND TRIM(brand) <> ''
+            ORDER BY brand
+        """)).scalars().all()
 
-        return {
-            "categories": categories or [],
-            "brands": brands or [],
-        }
-
-    except Exception:
-        return {"categories": [], "brands": []}
+    return {
+        "categories": categories or [],
+        "brands": brands or [],
+    }
 
 
 # =====================================================
-# GET LOCATIONS (HYBRID CAPACITY LOGIC)
+# BRAND → FLAVOUR DROPDOWN
+# =====================================================
+@router.get("/flavours")
+def get_flavours(
+    brand: str | None = Query(None),
+    category: str | None = Query(None),
+):
+    query = """
+        SELECT DISTINCT product_name
+        FROM products
+        WHERE 1=1
+    """
+
+    params = {}
+
+    if brand:
+        query += " AND brand ILIKE :brand"
+        params["brand"] = f"%{brand}%"
+
+    if category:
+        query += " AND category ILIKE :category"
+        params["category"] = f"%{category}%"
+
+    query += " ORDER BY product_name"
+
+    with engine.begin() as conn:
+        flavours = conn.execute(text(query), params).scalars().all()
+
+    return {"flavours": flavours or []}
+
+
+# =====================================================
+# GET LOCATIONS
 # =====================================================
 @router.get("/locations")
 def get_locations(
@@ -57,18 +84,6 @@ def get_locations(
     base_query = """
         SELECT
             UPPER(ls.location_code) AS location_code,
-
-            LEFT(
-                split_part(split_part(ls.location_code, ' ', 2), '-', 1),
-                1
-            ) AS aisle,
-
-            split_part(
-                split_part(ls.location_code, ' ', 2),
-                '-',
-                2
-            ) AS rack_type,
-
             ls.sku,
             p.product_name,
             p.brand,
@@ -90,7 +105,7 @@ def get_locations(
 
     params = {}
 
-    # ELECTRA aisle filter
+    # ELECTRA filter
     if aisle:
         base_query += " AND UPPER(ls.location_code) LIKE :aisle_prefix"
         params["aisle_prefix"] = f"ELECTRA {aisle.upper()}%"
@@ -113,48 +128,36 @@ def get_locations(
         base_query += " AND p.brand ILIKE :brand"
         params["brand"] = f"%{brand}%"
 
-    # Multi-word search
     if search:
-        words = search.strip().split()
-        for idx, word in enumerate(words):
-            key = f"search_{idx}"
-            base_query += f"""
-                AND (
-                    ls.sku ILIKE :{key}
-                    OR p.product_name ILIKE :{key}
-                )
-            """
-            params[key] = f"%{word}%"
-
-    base_query += """
-        AND (
-            CASE
-                WHEN p.units_per_carton IS NULL OR p.units_per_carton = 0
-                THEN 0
-                ELSE ls.units::float / p.units_per_carton
-            END
-        ) > 0
-    """
+        base_query += """
+            AND (
+                ls.sku ILIKE :search
+                OR p.product_name ILIKE :search
+            )
+        """
+        params["search"] = f"%{search}%"
 
     with engine.begin() as conn:
         rows = conn.execute(text(base_query), params).mappings().all()
 
-        sku_check = conn.execute(text("""
+        sku_counts = conn.execute(text("""
             SELECT UPPER(location_code) AS location_code,
                    COUNT(DISTINCT sku) AS sku_count
             FROM location_stock
             GROUP BY location_code
         """)).mappings().all()
 
-        # Manual overrides
         overrides = conn.execute(text("""
             SELECT UPPER(location_code) AS location_code,
                    max_cartons
             FROM location_capacity
         """)).mappings().all()
 
-    sku_map = {r["location_code"]: r["sku_count"] for r in sku_check}
-    override_map = {r["location_code"]: r["max_cartons"] for r in overrides}
+    sku_map = {r["location_code"]: r["sku_count"] for r in sku_counts}
+    override_map = {
+        r["location_code"]: int(r["max_cartons"] or 0)
+        for r in overrides
+    }
 
     grouped = defaultdict(list)
     for row in rows:
@@ -165,21 +168,28 @@ def get_locations(
     for location_code, items in grouped.items():
 
         total_cartons = sum(int(i["cartons"] or 0) for i in items)
-        real_sku_count = sku_map.get(location_code, 0)
-        is_mixed = real_sku_count > 1
+        sku_count = sku_map.get(location_code, 0)
+        is_mixed = sku_count > 1
 
-        # 🔥 HYBRID CAPACITY LOGIC
-        if location_code in override_map:
-            capacity = override_map[location_code]
+        manual_capacity = override_map.get(location_code, 0)
+
+        if manual_capacity > 0:
+            capacity = manual_capacity
+            capacity_source = "manual"
+
         elif not is_mixed:
             capacity = int(items[0]["pallet_carton_capacity"] or 30)
+            capacity_source = "product"
+
         else:
             capacity = 30
+            capacity_source = "mixed"
 
-        occupancy_percent = round((total_cartons / capacity) * 100, 1) if capacity > 0 else 0
-        needs_merge = occupancy_percent < 60
+        if capacity <= 0:
+            capacity = 30
 
-        # Pallet filter
+        occupancy_percent = round((total_cartons / capacity) * 100, 1)
+
         if pallet_type == "mixed" and not is_mixed:
             continue
         if pallet_type == "single" and is_mixed:
@@ -187,13 +197,12 @@ def get_locations(
 
         result.append({
             "location_code": location_code,
-            "aisle": items[0]["aisle"],
-            "rack_type": items[0]["rack_type"],
             "total_cartons": total_cartons,
             "max_cartons": capacity,
+            "capacity_source": capacity_source,
             "occupancy_percent": occupancy_percent,
             "is_mixed": is_mixed,
-            "needs_merge": needs_merge,
+            "needs_merge": occupancy_percent < 60,
             "items": [
                 {
                     "sku": i["sku"],
@@ -205,11 +214,3 @@ def get_locations(
         })
 
     return result
-
-
-# =====================================================
-# STATIC AISLES
-# =====================================================
-@router.get("/aisles")
-def get_aisles():
-    return {"aisles": ALLOWED_AISLES}

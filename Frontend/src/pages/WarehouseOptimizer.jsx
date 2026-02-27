@@ -11,14 +11,15 @@ export default function WarehouseOptimizer() {
     category: "",
     brand: "",
     search: "",
-    pallet_type: "",   // single | mixed | ""
+    pallet_type: "",
   });
 
-  // 🔥 THIS WAS MISSING
   const [availableFilters, setAvailableFilters] = useState({
     categories: [],
     brands: [],
   });
+
+  const [flavours, setFlavours] = useState([]);
 
   useEffect(() => {
     fetch(`${BASE_URL}/optimizer/filters`)
@@ -30,6 +31,24 @@ export default function WarehouseOptimizer() {
   useEffect(() => {
     loadLocations();
   }, [filters]);
+
+  useEffect(() => {
+    if (!filters.brand && !filters.category) {
+      setFlavours([]);
+      return;
+    }
+
+    const params = new URLSearchParams({
+      brand: filters.brand,
+      category: filters.category,
+    }).toString();
+
+    fetch(`${BASE_URL}/optimizer/flavours?${params}`)
+      .then(res => res.json())
+      .then(data => setFlavours(data.flavours || []))
+      .catch(() => setFlavours([]));
+
+  }, [filters.brand, filters.category]);
 
   const loadLocations = () => {
     setLoading(true);
@@ -74,7 +93,6 @@ export default function WarehouseOptimizer() {
       <div className="dashboard-header">
         <div className="filter-row">
 
-          {/* AISLE */}
           <select
             value={filters.aisle}
             onChange={e => setFilters({ ...filters, aisle: e.target.value })}
@@ -85,7 +103,6 @@ export default function WarehouseOptimizer() {
             ))}
           </select>
 
-          {/* CATEGORY */}
           <select
             value={filters.category}
             onChange={e => setFilters({ ...filters, category: e.target.value })}
@@ -96,7 +113,6 @@ export default function WarehouseOptimizer() {
             ))}
           </select>
 
-          {/* BRAND */}
           <select
             value={filters.brand}
             onChange={e => setFilters({ ...filters, brand: e.target.value })}
@@ -107,7 +123,16 @@ export default function WarehouseOptimizer() {
             ))}
           </select>
 
-          {/* 🔥 PALLET TYPE FILTER */}
+          <select
+            value={filters.search}
+            onChange={e => setFilters({ ...filters, search: e.target.value })}
+          >
+            <option value="">All Flavours</option>
+            {flavours.map((f, i) => (
+              <option key={i} value={f}>{f}</option>
+            ))}
+          </select>
+
           <select
             value={filters.pallet_type}
             onChange={e => setFilters({ ...filters, pallet_type: e.target.value })}
@@ -116,14 +141,6 @@ export default function WarehouseOptimizer() {
             <option value="single">Single SKU Pallet</option>
             <option value="mixed">Mixed Pallet</option>
           </select>
-
-          {/* SEARCH */}
-          <input
-            type="text"
-            placeholder="Search SKU or Product"
-            value={filters.search}
-            onChange={e => setFilters({ ...filters, search: e.target.value })}
-          />
 
         </div>
 
@@ -160,11 +177,18 @@ export default function WarehouseOptimizer() {
                     <div>Cartons: {p.total_cartons}</div>
 
                     <div className="capacity-row">
-                      Capacity:
+                      <span>
+                        Capacity: {p.max_cartons}
+                        {p.capacity_source === "manual" && " (Manual)"}
+                        {p.capacity_source === "product" && " (Product Auto)"}
+                        {p.capacity_source === "mixed" && " (Mixed Default)"}
+                      </span>
+
                       <input
                         type="number"
-                        defaultValue={p.max_cartons}
+                        placeholder="Manual override"
                         onBlur={e =>
+                          e.target.value &&
                           updateCapacity(p.location_code, e.target.value)
                         }
                       />
