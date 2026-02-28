@@ -137,12 +137,19 @@ async def upload_warehouse_data(
 
         location_df_clean = pd.DataFrame(normalized_rows)
 
+        # 🔥 REMOVE DUPLICATES INSIDE UPLOADED FILE
+        location_df_clean = location_df_clean.drop_duplicates(
+            subset=["location_code", "sku"]
+        )
+
         # -------------------------
-        # INSERT LOCATION STOCK (NO UPSERT)
+        # UPSERT LOCATION STOCK
         # -------------------------
-        INSERT_LOCATION = """
+        UPSERT_LOCATION = """
         INSERT INTO location_stock (location_code, sku, units)
-        VALUES (:location_code, :sku, :units);
+        VALUES (:location_code, :sku, :units)
+        ON CONFLICT (location_code, sku)
+        DO UPDATE SET units = EXCLUDED.units;
         """
 
         # -------------------------
@@ -150,16 +157,16 @@ async def upload_warehouse_data(
         # -------------------------
         with engine.begin() as conn:
 
-            # 🔥 CRITICAL FIX: SNAPSHOT MODE
-            conn.execute(text("TRUNCATE TABLE location_stock RESTART IDENTITY"))
+            # Snapshot mode
+            conn.execute(text("TRUNCATE TABLE location_stock"))
 
             # Upsert products
             for _, row in products.iterrows():
                 conn.execute(text(UPSERT_PRODUCTS), row.to_dict())
 
-            # Insert fresh location stock
+            # Upsert location stock
             for _, row in location_df_clean.iterrows():
-                conn.execute(text(INSERT_LOCATION), row.to_dict())
+                conn.execute(text(UPSERT_LOCATION), row.to_dict())
 
             # Save upload history
             conn.execute(text("""
