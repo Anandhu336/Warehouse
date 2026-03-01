@@ -90,10 +90,9 @@ export default function WarehouseOptimizer() {
   }, [filters.brand, filters.category]);
 
   // =========================
-  // UPDATE GROUP CAPACITY
+  // UPDATE CAPACITY
   // =========================
   const updateGroupCapacity = async () => {
-
     if (!selected || !groupCapacity) return;
 
     await fetch(`${BASE_URL}/optimizer/set-group-capacity`, {
@@ -110,11 +109,7 @@ export default function WarehouseOptimizer() {
     loadLocations();
   };
 
-  // =========================
-  // UPDATE LOCATION CAPACITY
-  // =========================
   const updateLocationCapacity = async () => {
-
     if (!selected || !locationCapacity) return;
 
     await fetch(`${BASE_URL}/optimizer/set-location-capacity`, {
@@ -164,13 +159,13 @@ export default function WarehouseOptimizer() {
             ))}
           </select>
 
-          {/* SHELF */}
+          {/* SHELF (A / B / C / D only) */}
           <select
             value={filters.shelf}
             onChange={e => setFilters({ ...filters, shelf: e.target.value })}
           >
             <option value="">All Shelves</option>
-            {["A1","A2","A3","B1","B2","B3","C1","C2","C3","D1","D2","D3"].map(s => (
+            {["A","B","C","D"].map(s => (
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
@@ -239,14 +234,12 @@ export default function WarehouseOptimizer() {
       <div className="dashboard-body">
 
         <div className="dashboard-grid">
-
           {loading ? (
             <p>Loading...</p>
           ) : locations.length === 0 ? (
             <p>No data found</p>
           ) : (
             <div className="card-grid">
-
               {locations.map((p,i)=>{
 
                 const occupancy = p.occupancy_percent || 0;
@@ -259,7 +252,6 @@ export default function WarehouseOptimizer() {
                       ${p.needs_merge ? "low" : ""}`}
                     onClick={()=>setSelected(p)}
                   >
-
                     <div className="opt-header">
                       <strong>{p.location_code}</strong>
                       <span>{occupancy}%</span>
@@ -287,15 +279,28 @@ export default function WarehouseOptimizer() {
                   </div>
                 );
               })}
-
             </div>
           )}
-
         </div>
 
         {/* ================= SIDEBAR ================= */}
         {selected && (
           <div className="dashboard-sidebar">
+
+            {/* CLOSE BUTTON */}
+            <button
+              onClick={() => setSelected(null)}
+              style={{
+                float: "right",
+                background: "transparent",
+                border: "none",
+                color: "#fff",
+                fontSize: "18px",
+                cursor: "pointer"
+              }}
+            >
+              ✕
+            </button>
 
             <h3>{selected.location_code}</h3>
             <div>Occupancy: {selected.occupancy_percent}%</div>
@@ -309,7 +314,6 @@ export default function WarehouseOptimizer() {
               </div>
             ))}
 
-            {/* LOCATION OVERRIDE */}
             <div style={{ marginTop:20 }}>
               <h4>Set Capacity For This Pallet</h4>
               <input
@@ -320,7 +324,6 @@ export default function WarehouseOptimizer() {
               <button onClick={updateLocationCapacity}>Update</button>
             </div>
 
-            {/* GROUP OVERRIDE */}
             {!selected.is_mixed && (
               <div style={{ marginTop:20 }}>
                 <h4>

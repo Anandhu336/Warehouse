@@ -123,18 +123,19 @@ def get_locations(
         """
 
     # =====================================================
-    # RACK FILTER  (Q2 → rack=2)
+    # RACK FILTER (Q2-A1 → rack=2)
     # =====================================================
     if rack:
         query += " AND UPPER(ls.location_code) LIKE :rack"
         params["rack"] = f"%{rack}-%"
 
     # =====================================================
-    # SHELF FILTER  (A1)
+    # SHELF FILTER (A / B / C / D)
+    # Matches A1, A2, A3 etc
     # =====================================================
     if shelf:
         query += " AND UPPER(ls.location_code) LIKE :shelf"
-        params["shelf"] = f"%-{shelf.upper()}"
+        params["shelf"] = f"%-{shelf.upper()}%"
 
     # =====================================================
     # CATEGORY / BRAND / FLAVOUR
@@ -152,7 +153,7 @@ def get_locations(
         params["flavour"] = f"%{flavour}%"
 
     # =====================================================
-    # SMART SEARCH (sku + name + location)
+    # SMART SEARCH (SKU + Product + Location)
     # =====================================================
     if search:
         words = search.strip().split()
@@ -162,10 +163,10 @@ def get_locations(
                 AND (
                     ls.sku ILIKE :{key}
                     OR p.product_name ILIKE :{key}
-                    OR UPPER(ls.location_code) ILIKE :{key}
+                    OR ls.location_code ILIKE :{key}
                 )
             """
-            params[key] = f"%{word.upper()}%"
+            params[key] = f"%{word}%"
 
     with engine.begin() as conn:
         rows = conn.execute(text(query), params).mappings().all()
@@ -218,9 +219,6 @@ def get_locations(
 
         # =====================================================
         # CAPACITY PRIORITY
-        # 1. Location override
-        # 2. Group override
-        # 3. Default 30
         # =====================================================
         if location_code in location_map:
             capacity = location_map[location_code]
