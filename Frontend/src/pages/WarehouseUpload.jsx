@@ -2,17 +2,20 @@ import { useState, useEffect } from "react";
 import BASE_URL from "../api";
 
 export default function WarehouseUpload() {
+
   const [productFile, setProductFile] = useState(null);
   const [locationFile, setLocationFile] = useState(null);
 
-  const [loading, setLoading] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [loadingLocation, setLoadingLocation] = useState(false);
+
   const [report, setReport] = useState(null);
   const [error, setError] = useState("");
   const [history, setHistory] = useState([]);
 
-  // ----------------------------------
-  // LOAD UPLOAD HISTORY
-  // ----------------------------------
+  // =========================
+  // LOAD HISTORY
+  // =========================
   useEffect(() => {
     fetchHistory();
   }, []);
@@ -20,153 +23,180 @@ export default function WarehouseUpload() {
   const fetchHistory = async () => {
     try {
       const res = await fetch(`${BASE_URL}/upload/history`);
-
-      if (!res.ok) {
-        console.warn("History fetch failed");
-        return;
-      }
-
       const data = await res.json();
       setHistory(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("History error:", err);
+    } catch {
       setHistory([]);
     }
   };
 
-  // ----------------------------------
-  // HANDLE UPLOAD
-  // ----------------------------------
-  const handleUpload = async () => {
-    if (!productFile || !locationFile) {
-      setError("Please upload both Product and Location files");
+  // =========================
+  // UPLOAD PRODUCTS
+  // =========================
+  const uploadProducts = async () => {
+
+    if (!productFile) {
+      setError("Please select Product Master file");
       return;
     }
 
-    setLoading(true);
+    setLoadingProducts(true);
     setError("");
     setReport(null);
 
     const formData = new FormData();
     formData.append("products_file", productFile);
-    formData.append("location_file", locationFile);
 
     try {
-      const res = await fetch(
-        `${BASE_URL}/upload/warehouse-data`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      const res = await fetch(`${BASE_URL}/upload/products`, {
+        method: "POST",
+        body: formData,
+      });
 
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(text || "Upload failed");
+        throw new Error(text);
       }
 
       const data = await res.json();
 
       setReport({
-        product_rows: data.products_loaded || 0,
-        location_rows: data.locations_loaded || 0,
-        new_products: data.new_products || 0,
-        updated_products: data.updated_products || 0,
+        message: data.status,
+        rows: data.rows
       });
 
-      // Refresh history after successful upload
       fetchHistory();
     } catch (err) {
-      console.error("Upload error:", err);
-      setError(err.message || "Upload failed");
+      setError("Product upload failed");
     } finally {
-      setLoading(false);
+      setLoadingProducts(false);
     }
+  };
+
+  // =========================
+  // UPLOAD LOCATION STOCK
+  // =========================
+  const uploadLocation = async () => {
+
+    if (!locationFile) {
+      setError("Please select Location Stock file");
+      return;
+    }
+
+    setLoadingLocation(true);
+    setError("");
+    setReport(null);
+
+    const formData = new FormData();
+    formData.append("location_file", locationFile);
+
+    try {
+      const res = await fetch(`${BASE_URL}/upload/location-stock`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text);
+      }
+
+      const data = await res.json();
+
+      setReport({
+        message: data.status,
+        rows: data.rows
+      });
+
+      fetchHistory();
+    } catch {
+      setError("Location upload failed");
+    } finally {
+      setLoadingLocation(false);
+    }
+  };
+
+  // =========================
+  // DELETE ONE HISTORY ROW
+  // =========================
+  const deleteHistory = async (id) => {
+    await fetch(`${BASE_URL}/upload/history/${id}`, {
+      method: "DELETE",
+    });
+    fetchHistory();
+  };
+
+  // =========================
+  // CLEAR ALL HISTORY
+  // =========================
+  const clearHistory = async () => {
+    await fetch(`${BASE_URL}/upload/history`, {
+      method: "DELETE",
+    });
+    fetchHistory();
   };
 
   return (
     <div className="upload-wrapper">
-      <h2 className="upload-title">Warehouse Data Upload</h2>
 
-      <p className="upload-subtitle">
-        Upload Product Master & Location Stock CSV to auto-update the system
-      </p>
+      <h2>Warehouse Upload Center</h2>
 
-      {/* ========================= */}
-      {/* UPLOAD SECTION */}
-      {/* ========================= */}
+      {/* ================= PRODUCT UPLOAD ================= */}
+      <div className="upload-box">
+        <h4>Upload Product Master</h4>
 
-      <div className="upload-grid">
-        <div className="upload-box">
-          <h4>Product Master File</h4>
-          <input
-            type="file"
-            accept=".csv"
-            onChange={(e) => setProductFile(e.target.files[0])}
-          />
-          <span>{productFile?.name || "No file selected"}</span>
-        </div>
+        <input
+          type="file"
+          accept=".csv"
+          onChange={(e) => setProductFile(e.target.files[0])}
+        />
 
-        <div className="upload-box">
-          <h4>Location Stock File</h4>
-          <input
-            type="file"
-            accept=".csv"
-            onChange={(e) => setLocationFile(e.target.files[0])}
-          />
-          <span>{locationFile?.name || "No file selected"}</span>
-        </div>
+        <button
+          onClick={uploadProducts}
+          disabled={loadingProducts}
+        >
+          {loadingProducts ? "Uploading..." : "Upload Products"}
+        </button>
       </div>
 
-      <button
-        className="upload-btn"
-        onClick={handleUpload}
-        disabled={loading}
-      >
-        {loading ? "Processing..." : "Upload & Process"}
-      </button>
+      {/* ================= LOCATION UPLOAD ================= */}
+      <div className="upload-box">
+        <h4>Upload Location Stock</h4>
 
-      {error && <p className="upload-error">{error}</p>}
+        <input
+          type="file"
+          accept=".csv"
+          onChange={(e) => setLocationFile(e.target.files[0])}
+        />
 
-      {/* ========================= */}
-      {/* VALIDATION REPORT */}
-      {/* ========================= */}
+        <button
+          onClick={uploadLocation}
+          disabled={loadingLocation}
+        >
+          {loadingLocation ? "Uploading..." : "Upload Location"}
+        </button>
+      </div>
 
+      {/* ================= REPORT ================= */}
       {report && (
         <div className="report-card">
-          <h3>Upload Summary</h3>
-
-          <div className="report-grid">
-            <div className="report-item">
-              <span>Total Products</span>
-              <strong>{report.product_rows}</strong>
-            </div>
-
-            <div className="report-item">
-              <span>Total Locations</span>
-              <strong>{report.location_rows}</strong>
-            </div>
-
-            <div className="report-item green">
-              <span>New Products</span>
-              <strong>{report.new_products}</strong>
-            </div>
-
-            <div className="report-item yellow">
-              <span>Updated Products</span>
-              <strong>{report.updated_products}</strong>
-            </div>
-          </div>
+          <strong>{report.message}</strong>
+          <div>Rows Processed: {report.rows}</div>
         </div>
       )}
 
-      {/* ========================= */}
-      {/* HISTORY TABLE */}
-      {/* ========================= */}
+      {error && <div className="upload-error">{error}</div>}
 
+      {/* ================= HISTORY ================= */}
       {history.length > 0 && (
         <div className="history-card">
-          <h3>Recent Uploads</h3>
+
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <h3>Upload History</h3>
+            <button onClick={clearHistory} className="danger-btn">
+              Clear All
+            </button>
+          </div>
 
           <table className="history-table">
             <thead>
@@ -174,27 +204,30 @@ export default function WarehouseUpload() {
                 <th>Date</th>
                 <th>Products</th>
                 <th>Locations</th>
-                <th>New</th>
-                <th>Updated</th>
+                <th>Action</th>
               </tr>
             </thead>
-
             <tbody>
-              {history.map((h, i) => (
-                <tr key={i}>
+              {history.map((h) => (
+                <tr key={h.id}>
                   <td>
-                    {h.upload_time
-                      ? new Date(h.upload_time).toLocaleString()
-                      : "-"}
+                    {new Date(h.upload_time).toLocaleString()}
                   </td>
                   <td>{h.product_rows || 0}</td>
                   <td>{h.location_rows || 0}</td>
-                  <td>{h.new_products || 0}</td>
-                  <td>{h.updated_products || 0}</td>
+                  <td>
+                    <button
+                      className="danger-btn"
+                      onClick={() => deleteHistory(h.id)}
+                    >
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+
         </div>
       )}
     </div>

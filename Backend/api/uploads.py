@@ -9,7 +9,7 @@ router = APIRouter(prefix="/upload", tags=["Upload"])
 
 
 # -------------------------------------------------
-# SAFE INTEGER CONVERSION
+# SAFE INTEGER
 # -------------------------------------------------
 def safe_int(value):
     try:
@@ -20,66 +20,68 @@ def safe_int(value):
         return 0
 
 
+# -------------------------------------------------
+# AUTO MAP COLUMN
+# -------------------------------------------------
+def auto_map_column(df, expected_name):
+    for col in df.columns:
+        if expected_name in col:
+            df.rename(columns={col: expected_name}, inplace=True)
+            return
+
+
 # =================================================
-# MAIN UPLOAD ENDPOINT
+# 1️⃣ UPLOAD PRODUCT MASTER
 # =================================================
-@router.post("/warehouse-data")
-async def upload_warehouse_data(
-    products_file: UploadFile = File(...),
-    location_file: UploadFile = File(...)
-):
+@router.post("/products")
+async def upload_products(products_file: UploadFile = File(...)):
 
     try:
-        # -------------------------
-        # READ FILES
-        # -------------------------
         products_df = pd.read_csv(io.BytesIO(await products_file.read()))
-        location_df = pd.read_csv(io.BytesIO(await location_file.read()))
-
         products_df.columns = products_df.columns.str.strip().str.lower()
-        location_df.columns = location_df.columns.str.strip()
 
-        # -------------------------
-        # VALIDATE REQUIRED PRODUCT COLUMNS
-        # -------------------------
-        required_product_cols = [
-            "sku",
-            "product name",
-            "category",
-            "hidden carton qty",
-            "hidden barcode unit",
-            "hidden barcode carton",
-            "hidden barcode outer",
-        ]
+        auto_map_column(products_df, "sku")
+        auto_map_column(products_df, "product name")
+        auto_map_column(products_df, "category")
+        auto_map_column(products_df, "hidden carton qty")
 
-        for col in required_product_cols:
+        required = ["sku", "product name", "hidden carton qty"]
+
+        for col in required:
             if col not in products_df.columns:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Missing required column in product file: {col}"
+                    detail=f"Missing required column: {col}"
                 )
 
-        # -------------------------
-        # PREPARE PRODUCTS
-        # -------------------------
-        products = products_df[required_product_cols].dropna(
+        products = products_df.dropna(
             subset=["sku", "product name", "hidden carton qty"]
-        )
+        ).copy()
+
+        products["sku"] = products["sku"].astype(str).str.strip()
 
         products = products.rename(columns={
             "product name": "product_name",
-            "hidden carton qty": "units_per_carton",
-            "hidden barcode unit": "unit_barcode",
-            "hidden barcode carton": "carton_barcode",
-            "hidden barcode outer": "outer_barcode",
+            "hidden carton qty": "units_per_carton"
         })
 
-        products["sku"] = products["sku"].astype(str).str.strip()
+        # Optional barcode columns
+        for optional in [
+            "hidden barcode unit",
+            "hidden barcode carton",
+            "hidden barcode outer"
+        ]:
+            if optional not in products.columns:
+                products[optional] = None
+
+        products = products.rename(columns={
+            "hidden barcode unit": "unit_barcode",
+            "hidden barcode carton": "carton_barcode",
+            "hidden barcode outer": "outer_barcode"
+        })
+
         products = products.drop_duplicates(subset=["sku"])
 
-        # -------------------------
-        # UPSERT PRODUCTS
-        # -------------------------
         UPSERT_PRODUCTS = """
         INSERT INTO products (
             sku,
@@ -108,9 +110,37 @@ async def upload_warehouse_data(
             outer_barcode = EXCLUDED.outer_barcode;
         """
 
-        # -------------------------
-        # NORMALIZE LOCATION DATA
-        # -------------------------
+        with engine.begin() as conn:
+            for _, row in products.iterrows():
+                conn.execute(text(UPSERT_PRODUCTS), row.to_dict())
+
+            conn.execute(text("""
+                INSERT INTO upload_history (product_rows, location_rows, upload_time)
+                VALUES (:p, 0, :t)
+            """), {
+                "p": len(products),
+                "t": datetime.utcnow()
+            })
+
+        return {
+            "status": "product master updated",
+            "rows": len(products)
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =================================================
+# 2️⃣ UPLOAD LOCATION STOCK (SNAPSHOT)
+# =================================================
+@router.post("/location-stock")
+async def upload_location_stock(location_file: UploadFile = File(...)):
+
+    try:
+        location_df = pd.read_csv(io.BytesIO(await location_file.read()))
+        location_df.columns = location_df.columns.str.strip()
+
         normalized_rows = []
 
         for _, row in location_df.iterrows():
@@ -119,7 +149,7 @@ async def upload_warehouse_data(
             skus_raw = str(row.get("SKU(s)", "")).strip()
             qty_raw = str(row.get("QTY", "")).strip()
 
-            if skus_raw in ["", "-", "nan"]:
+            if not location or skus_raw in ["", "-", "nan"]:
                 continue
 
             skus = skus_raw.split()
@@ -137,14 +167,11 @@ async def upload_warehouse_data(
 
         location_df_clean = pd.DataFrame(normalized_rows)
 
-        # 🔥 REMOVE DUPLICATES INSIDE UPLOADED FILE
-        location_df_clean = location_df_clean.drop_duplicates(
-            subset=["location_code", "sku"]
-        )
+        if not location_df_clean.empty:
+            location_df_clean = location_df_clean.drop_duplicates(
+                subset=["location_code", "sku"]
+            )
 
-        # -------------------------
-        # UPSERT LOCATION STOCK
-        # -------------------------
         UPSERT_LOCATION = """
         INSERT INTO location_stock (location_code, sku, units)
         VALUES (:location_code, :sku, :units)
@@ -152,44 +179,25 @@ async def upload_warehouse_data(
         DO UPDATE SET units = EXCLUDED.units;
         """
 
-        # -------------------------
-        # EXECUTE DB OPERATIONS
-        # -------------------------
         with engine.begin() as conn:
 
             # Snapshot mode
             conn.execute(text("TRUNCATE TABLE location_stock"))
 
-            # Upsert products
-            for _, row in products.iterrows():
-                conn.execute(text(UPSERT_PRODUCTS), row.to_dict())
-
-            # Upsert location stock
             for _, row in location_df_clean.iterrows():
                 conn.execute(text(UPSERT_LOCATION), row.to_dict())
 
-            # Save upload history
             conn.execute(text("""
-                INSERT INTO upload_history (
-                    product_rows,
-                    location_rows,
-                    upload_time
-                )
-                VALUES (
-                    :product_rows,
-                    :location_rows,
-                    :upload_time
-                )
+                INSERT INTO upload_history (product_rows, location_rows, upload_time)
+                VALUES (0, :l, :t)
             """), {
-                "product_rows": len(products),
-                "location_rows": len(location_df_clean),
-                "upload_time": datetime.utcnow()
+                "l": len(location_df_clean),
+                "t": datetime.utcnow()
             })
 
         return {
-            "status": "success",
-            "products_loaded": len(products),
-            "locations_loaded": len(location_df_clean)
+            "status": "location stock updated",
+            "rows": len(location_df_clean)
         }
 
     except Exception as e:
@@ -197,7 +205,7 @@ async def upload_warehouse_data(
 
 
 # =================================================
-# GET UPLOAD HISTORY
+# UPLOAD HISTORY
 # =================================================
 @router.get("/history")
 def get_upload_history():
@@ -208,5 +216,21 @@ def get_upload_history():
             ORDER BY upload_time DESC
             LIMIT 20
         """)).mappings().all()
-
     return rows
+# DELETE SINGLE HISTORY ROW
+@router.delete("/history/{history_id}")
+def delete_history(history_id: int):
+    with engine.begin() as conn:
+        conn.execute(
+            text("DELETE FROM upload_history WHERE id = :id"),
+            {"id": history_id}
+        )
+    return {"status": "deleted"}
+
+
+# CLEAR ALL HISTORY
+@router.delete("/history")
+def clear_history():
+    with engine.begin() as conn:
+        conn.execute(text("TRUNCATE TABLE upload_history"))
+    return {"status": "cleared"}
