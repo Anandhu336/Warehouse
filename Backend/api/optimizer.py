@@ -75,6 +75,8 @@ def get_flavours(
 @router.get("/locations")
 def get_locations(
     aisle: str | None = Query(None),
+    rack: str | None = Query(None),
+    shelf: str | None = Query(None),
     category: str | None = Query(None),
     brand: str | None = Query(None),
     flavour: str | None = Query(None),
@@ -103,7 +105,9 @@ def get_locations(
 
     params = {}
 
+    # =====================================================
     # AISLE FILTER
+    # =====================================================
     if aisle:
         query += " AND UPPER(ls.location_code) LIKE :aisle"
         params["aisle"] = f"ELECTRA {aisle.upper()}%"
@@ -118,6 +122,23 @@ def get_locations(
             )
         """
 
+    # =====================================================
+    # RACK FILTER  (Q2 → rack=2)
+    # =====================================================
+    if rack:
+        query += " AND UPPER(ls.location_code) LIKE :rack"
+        params["rack"] = f"%{rack}-%"
+
+    # =====================================================
+    # SHELF FILTER  (A1)
+    # =====================================================
+    if shelf:
+        query += " AND UPPER(ls.location_code) LIKE :shelf"
+        params["shelf"] = f"%-{shelf.upper()}"
+
+    # =====================================================
+    # CATEGORY / BRAND / FLAVOUR
+    # =====================================================
     if category:
         query += " AND p.category ILIKE :category"
         params["category"] = f"%{category}%"
@@ -130,7 +151,9 @@ def get_locations(
         query += " AND p.product_name ILIKE :flavour"
         params["flavour"] = f"%{flavour}%"
 
+    # =====================================================
     # SMART SEARCH (sku + name + location)
+    # =====================================================
     if search:
         words = search.strip().split()
         for i, word in enumerate(words):
@@ -142,7 +165,7 @@ def get_locations(
                     OR UPPER(ls.location_code) ILIKE :{key}
                 )
             """
-            params[key] = f"%{word}%"
+            params[key] = f"%{word.upper()}%"
 
     with engine.begin() as conn:
         rows = conn.execute(text(query), params).mappings().all()
@@ -193,7 +216,12 @@ def get_locations(
         brand_val = items[0]["brand"].strip().lower()
         category_val = items[0]["category"].strip().lower()
 
-        # PRIORITY
+        # =====================================================
+        # CAPACITY PRIORITY
+        # 1. Location override
+        # 2. Group override
+        # 3. Default 30
+        # =====================================================
         if location_code in location_map:
             capacity = location_map[location_code]
             source = "location-override"
@@ -228,6 +256,9 @@ def get_locations(
     return result
 
 
+# =====================================================
+# SET GROUP CAPACITY
+# =====================================================
 @router.post("/set-group-capacity")
 def set_group_capacity(data: dict):
     with engine.begin() as conn:
@@ -240,6 +271,9 @@ def set_group_capacity(data: dict):
     return {"status": "updated"}
 
 
+# =====================================================
+# SET LOCATION CAPACITY
+# =====================================================
 @router.post("/set-location-capacity")
 def set_location_capacity(data: dict):
     with engine.begin() as conn:

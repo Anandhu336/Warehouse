@@ -9,6 +9,8 @@ export default function WarehouseOptimizer() {
 
   const [filters, setFilters] = useState({
     aisle: "ALL",
+    rack: "",
+    shelf: "",
     category: "",
     brand: "",
     flavour: "",
@@ -148,6 +150,28 @@ export default function WarehouseOptimizer() {
             <option value="ALL">All Aisles</option>
             {["P","Q","R","S","T"].map(a => (
               <option key={a} value={a}>{a}</option>
+            ))}
+          </select>
+
+          {/* RACK */}
+          <select
+            value={filters.rack}
+            onChange={e => setFilters({ ...filters, rack: e.target.value })}
+          >
+            <option value="">All Racks</option>
+            {[1,2,3,4,5,6,7,8,9].map(r => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+
+          {/* SHELF */}
+          <select
+            value={filters.shelf}
+            onChange={e => setFilters({ ...filters, shelf: e.target.value })}
+          >
+            <option value="">All Shelves</option>
+            {["A1","A2","A3","B1","B2","B3","C1","C2","C3","D1","D2","D3"].map(s => (
+              <option key={s} value={s}>{s}</option>
             ))}
           </select>
 
