@@ -9,14 +9,14 @@ export default function WarehouseOptimizer() {
 
   const [filters, setFilters] = useState({
     aisle: "ALL",
-    rack: "",
-    shelf: "",
-    category: "",
-    brand: "",
-    flavour: "",
+    rack: [],
+    shelf: [],
+    category: [],
+    brand: [],
+    flavour: [],
     search: "",
     pallet_type: "",
-    empty: "",   // ADDED
+    empty: "",
   });
 
   const [availableFilters, setAvailableFilters] = useState({
@@ -45,19 +45,24 @@ export default function WarehouseOptimizer() {
   }, [filters]);
 
   const loadLocations = () => {
+
     setLoading(true);
 
-    const params = {};
+    const params = new URLSearchParams();
 
     Object.entries(filters).forEach(([key, value]) => {
-      if (value && value !== "ALL") {
-        params[key] = value;
+
+      if (!value || value === "ALL") return;
+
+      if (Array.isArray(value)) {
+        value.forEach(v => params.append(key, v));
+      } else {
+        params.append(key, value);
       }
+
     });
 
-    const query = new URLSearchParams(params).toString();
-
-    fetch(`${BASE_URL}/optimizer/locations?${query}`)
+    fetch(`${BASE_URL}/optimizer/locations?${params.toString()}`)
       .then(res => res.json())
       .then(data => {
         setLocations(Array.isArray(data) ? data : []);
@@ -67,6 +72,7 @@ export default function WarehouseOptimizer() {
         setLocations([]);
         setLoading(false);
       });
+
   };
 
   // =========================
@@ -74,26 +80,41 @@ export default function WarehouseOptimizer() {
   // =========================
   useEffect(() => {
 
-    if (!filters.brand && !filters.category) {
+    if (filters.brand.length === 0 && filters.category.length === 0) {
       setFlavours([]);
       return;
     }
 
-    const params = new URLSearchParams({
-      brand: filters.brand,
-      category: filters.category
-    }).toString();
+    const params = new URLSearchParams();
 
-    fetch(`${BASE_URL}/optimizer/flavours?${params}`)
+    filters.brand.forEach(b => params.append("brand", b));
+    filters.category.forEach(c => params.append("category", c));
+
+    fetch(`${BASE_URL}/optimizer/flavours?${params.toString()}`)
       .then(res => res.json())
       .then(data => setFlavours(data.flavours || []));
 
   }, [filters.brand, filters.category]);
 
   // =========================
+  // MULTI SELECT HANDLER
+  // =========================
+  const handleMultiSelect = (e, key) => {
+
+    const values = Array.from(e.target.selectedOptions, option => option.value);
+
+    setFilters({
+      ...filters,
+      [key]: values
+    });
+
+  };
+
+  // =========================
   // UPDATE CAPACITY
   // =========================
   const updateGroupCapacity = async () => {
+
     if (!selected || !groupCapacity) return;
 
     await fetch(`${BASE_URL}/optimizer/set-group-capacity`, {
@@ -108,9 +129,11 @@ export default function WarehouseOptimizer() {
 
     setGroupCapacity("");
     loadLocations();
+
   };
 
   const updateLocationCapacity = async () => {
+
     if (!selected || !locationCapacity) return;
 
     await fetch(`${BASE_URL}/optimizer/set-location-capacity`, {
@@ -124,6 +147,7 @@ export default function WarehouseOptimizer() {
 
     setLocationCapacity("");
     loadLocations();
+
   };
 
   const totalLocations = locations.length;
@@ -133,7 +157,6 @@ export default function WarehouseOptimizer() {
   return (
     <div className="dashboard-wrapper">
 
-      {/* ================= HEADER ================= */}
       <div className="dashboard-header">
 
         <div className="filter-row">
@@ -149,59 +172,59 @@ export default function WarehouseOptimizer() {
             ))}
           </select>
 
-          {/* RACK */}
+          {/* RACK MULTI */}
           <select
+            multiple
             value={filters.rack}
-            onChange={e => setFilters({ ...filters, rack: e.target.value })}
+            onChange={(e)=>handleMultiSelect(e,"rack")}
           >
-            <option value="">All Racks</option>
             {[1,2,3,4,5,6,7,8,9].map(r => (
               <option key={r} value={r}>{r}</option>
             ))}
           </select>
 
-          {/* SHELF */}
+          {/* SHELF MULTI */}
           <select
+            multiple
             value={filters.shelf}
-            onChange={e => setFilters({ ...filters, shelf: e.target.value })}
+            onChange={(e)=>handleMultiSelect(e,"shelf")}
           >
-            <option value="">All Shelves</option>
             {["A","B","C","D"].map(s => (
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
 
-          {/* CATEGORY */}
+          {/* CATEGORY MULTI */}
           <select
+            multiple
             value={filters.category}
-            onChange={e => setFilters({ ...filters, category: e.target.value, flavour: "" })}
+            onChange={(e)=>handleMultiSelect(e,"category")}
           >
-            <option value="">All Categories</option>
-            {availableFilters.categories.map((c,i)=>
+            {availableFilters.categories.map((c,i)=>(
               <option key={i} value={c}>{c}</option>
-            )}
+            ))}
           </select>
 
-          {/* BRAND */}
+          {/* BRAND MULTI */}
           <select
+            multiple
             value={filters.brand}
-            onChange={e => setFilters({ ...filters, brand: e.target.value, flavour: "" })}
+            onChange={(e)=>handleMultiSelect(e,"brand")}
           >
-            <option value="">All Brands</option>
-            {availableFilters.brands.map((b,i)=>
+            {availableFilters.brands.map((b,i)=>(
               <option key={i} value={b}>{b}</option>
-            )}
+            ))}
           </select>
 
-          {/* FLAVOUR */}
+          {/* FLAVOUR MULTI */}
           <select
+            multiple
             value={filters.flavour}
-            onChange={e => setFilters({ ...filters, flavour: e.target.value })}
+            onChange={(e)=>handleMultiSelect(e,"flavour")}
           >
-            <option value="">All Flavours</option>
-            {flavours.map((f,i)=>
+            {flavours.map((f,i)=>(
               <option key={i} value={f}>{f}</option>
-            )}
+            ))}
           </select>
 
           {/* SEARCH */}
@@ -222,7 +245,7 @@ export default function WarehouseOptimizer() {
             <option value="mixed">Mixed</option>
           </select>
 
-          {/* EMPTY LOCATION FILTER */}
+          {/* EMPTY FILTER */}
           <select
             value={filters.empty}
             onChange={e => setFilters({ ...filters, empty: e.target.value })}
@@ -239,17 +262,19 @@ export default function WarehouseOptimizer() {
           <div>Mixed Pallets: {mixedCount}</div>
           <div>Low Occupancy: {lowCount}</div>
         </div>
+
       </div>
 
-      {/* ================= BODY ================= */}
       <div className="dashboard-body">
 
         <div className="dashboard-grid">
+
           {loading ? (
             <p>Loading...</p>
           ) : locations.length === 0 ? (
             <p>No data found</p>
           ) : (
+
             <div className="card-grid">
 
               {locations.map((p,i)=>{
@@ -299,67 +324,13 @@ export default function WarehouseOptimizer() {
               })}
 
             </div>
+
           )}
+
         </div>
 
-        {/* ================= SIDEBAR ================= */}
-        {selected && (
-          <div className="dashboard-sidebar">
-
-            <button
-              onClick={() => setSelected(null)}
-              style={{
-                float: "right",
-                background: "transparent",
-                border: "none",
-                color: "#fff",
-                fontSize: "18px",
-                cursor: "pointer"
-              }}
-            >
-              ✕
-            </button>
-
-            <h3>{selected.location_code}</h3>
-            <div>Occupancy: {selected.occupancy_percent}%</div>
-
-            <h4>Products</h4>
-
-            {selected.items?.map((item,i)=>(
-              <div key={i} className="sku-row">
-                <div>{item.product_name}</div>
-                <div>{item.cartons} cartons</div>
-              </div>
-            ))}
-
-            <div style={{ marginTop:20 }}>
-              <h4>Set Capacity For This Pallet</h4>
-              <input
-                type="number"
-                value={locationCapacity}
-                onChange={e=>setLocationCapacity(e.target.value)}
-              />
-              <button onClick={updateLocationCapacity}>Update</button>
-            </div>
-
-            {!selected.is_mixed && selected.items?.length > 0 && (
-              <div style={{ marginTop:20 }}>
-                <h4>
-                  Set Capacity for {selected.items[0].brand} - {selected.items[0].category}
-                </h4>
-                <input
-                  type="number"
-                  value={groupCapacity}
-                  onChange={e=>setGroupCapacity(e.target.value)}
-                />
-                <button onClick={updateGroupCapacity}>Update</button>
-              </div>
-            )}
-
-          </div>
-        )}
-
       </div>
+
     </div>
   );
 }
