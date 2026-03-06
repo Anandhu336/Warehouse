@@ -82,6 +82,9 @@ def get_locations(
     flavour: str | None = Query(None),
     search: str | None = Query(None),
     pallet_type: str | None = Query(None),
+
+    # ===== ADDED FOR EMPTY LOCATION FILTER =====
+    empty: bool | None = Query(None),
 ):
 
     query = """
@@ -123,15 +126,14 @@ def get_locations(
         """
 
     # =====================================================
-    # RACK FILTER (Q2-A1 → rack=2)
+    # RACK FILTER
     # =====================================================
     if rack:
         query += " AND UPPER(ls.location_code) LIKE :rack"
         params["rack"] = f"%{rack}-%"
 
     # =====================================================
-    # SHELF FILTER (A / B / C / D)
-    # Matches A1, A2, A3 etc
+    # SHELF FILTER
     # =====================================================
     if shelf:
         query += " AND UPPER(ls.location_code) LIKE :shelf"
@@ -153,7 +155,7 @@ def get_locations(
         params["flavour"] = f"%{flavour}%"
 
     # =====================================================
-    # SMART SEARCH (SKU + Product + Location)
+    # SMART SEARCH
     # =====================================================
     if search:
         words = search.strip().split()
@@ -206,20 +208,43 @@ def get_locations(
     for row in rows:
         grouped[row["location_code"]].append(row)
 
+    # ===== ADDED FOR EMPTY LOCATION FILTER =====
+    # Generate possible pallet locations so empty ones appear
+    all_locations = set()
+    for aisle_letter in ALLOWED_AISLES:
+        for rack_num in range(1, 10):
+            for shelf_letter in ["A", "B", "C", "D"]:
+                for pos in range(1, 4):
+                    code = f"ELECTRA {aisle_letter}{rack_num}-{shelf_letter}{pos}"
+                    all_locations.add(code)
+
+    existing_locations = set(grouped.keys())
+
+    for loc in all_locations - existing_locations:
+        grouped[loc] = []
+
     result = []
 
     for location_code, items in grouped.items():
 
-        total_cartons = sum(int(i["cartons"] or 0) for i in items)
+        total_cartons = sum(int(i["cartons"] or 0) for i in items) if items else 0
+
+        # ===== ADDED EMPTY FILTER =====
+        if empty is True and items:
+            continue
+        if empty is False and not items:
+            continue
+
         sku_count = sku_map.get(location_code, 0)
         is_mixed = sku_count > 1
 
-        brand_val = items[0]["brand"].strip().lower()
-        category_val = items[0]["category"].strip().lower()
+        if items:
+            brand_val = items[0]["brand"].strip().lower()
+            category_val = items[0]["category"].strip().lower()
+        else:
+            brand_val = ""
+            category_val = ""
 
-        # =====================================================
-        # CAPACITY PRIORITY
-        # =====================================================
         if location_code in location_map:
             capacity = location_map[location_code]
             source = "location-override"
@@ -233,7 +258,7 @@ def get_locations(
         if capacity <= 0:
             capacity = 30
 
-        occupancy = round((total_cartons / capacity) * 100, 1)
+        occupancy = round((total_cartons / capacity) * 100, 1) if capacity else 0
 
         if pallet_type == "mixed" and not is_mixed:
             continue
@@ -248,6 +273,7 @@ def get_locations(
             "occupancy_percent": occupancy,
             "is_mixed": is_mixed,
             "needs_merge": occupancy < 60,
+            "is_empty": len(items) == 0,   # added
             "items": items,
         })
 

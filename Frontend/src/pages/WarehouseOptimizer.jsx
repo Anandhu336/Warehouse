@@ -16,6 +16,7 @@ export default function WarehouseOptimizer() {
     flavour: "",
     search: "",
     pallet_type: "",
+    empty: "",   // ADDED
   });
 
   const [availableFilters, setAvailableFilters] = useState({
@@ -99,8 +100,8 @@ export default function WarehouseOptimizer() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        brand: selected.items[0].brand,
-        category: selected.items[0].category,
+        brand: selected.items?.[0]?.brand,
+        category: selected.items?.[0]?.category,
         max_cartons: Number(groupCapacity)
       }),
     });
@@ -159,7 +160,7 @@ export default function WarehouseOptimizer() {
             ))}
           </select>
 
-          {/* SHELF (A / B / C / D only) */}
+          {/* SHELF */}
           <select
             value={filters.shelf}
             onChange={e => setFilters({ ...filters, shelf: e.target.value })}
@@ -221,6 +222,16 @@ export default function WarehouseOptimizer() {
             <option value="mixed">Mixed</option>
           </select>
 
+          {/* EMPTY LOCATION FILTER */}
+          <select
+            value={filters.empty}
+            onChange={e => setFilters({ ...filters, empty: e.target.value })}
+          >
+            <option value="">All Locations</option>
+            <option value="true">Empty Locations</option>
+            <option value="false">Occupied Locations</option>
+          </select>
+
         </div>
 
         <div className="dashboard-stats">
@@ -240,6 +251,7 @@ export default function WarehouseOptimizer() {
             <p>No data found</p>
           ) : (
             <div className="card-grid">
+
               {locations.map((p,i)=>{
 
                 const occupancy = p.occupancy_percent || 0;
@@ -249,15 +261,21 @@ export default function WarehouseOptimizer() {
                     key={i}
                     className={`optimizer-card 
                       ${p.is_mixed ? "mixed" : ""} 
-                      ${p.needs_merge ? "low" : ""}`}
+                      ${p.needs_merge ? "low" : ""}
+                      ${p.is_empty ? "empty" : ""}`}
                     onClick={()=>setSelected(p)}
                   >
+
                     <div className="opt-header">
                       <strong>{p.location_code}</strong>
                       <span>{occupancy}%</span>
                     </div>
 
                     <div>Cartons: {p.total_cartons}</div>
+
+                    {p.is_empty && (
+                      <div className="flag blue">Empty Location</div>
+                    )}
 
                     <div>
                       Capacity: {p.max_cartons}
@@ -279,6 +297,7 @@ export default function WarehouseOptimizer() {
                   </div>
                 );
               })}
+
             </div>
           )}
         </div>
@@ -287,7 +306,6 @@ export default function WarehouseOptimizer() {
         {selected && (
           <div className="dashboard-sidebar">
 
-            {/* CLOSE BUTTON */}
             <button
               onClick={() => setSelected(null)}
               style={{
@@ -307,7 +325,7 @@ export default function WarehouseOptimizer() {
 
             <h4>Products</h4>
 
-            {selected.items.map((item,i)=>(
+            {selected.items?.map((item,i)=>(
               <div key={i} className="sku-row">
                 <div>{item.product_name}</div>
                 <div>{item.cartons} cartons</div>
@@ -324,7 +342,7 @@ export default function WarehouseOptimizer() {
               <button onClick={updateLocationCapacity}>Update</button>
             </div>
 
-            {!selected.is_mixed && (
+            {!selected.is_mixed && selected.items?.length > 0 && (
               <div style={{ marginTop:20 }}>
                 <h4>
                   Set Capacity for {selected.items[0].brand} - {selected.items[0].category}
