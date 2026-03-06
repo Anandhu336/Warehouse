@@ -518,8 +518,7 @@ td input {
   gap: 12px;
   flex-wrap: wrap;
   margin-bottom: 12px;
-
-  
+  overflow: visible;
 }
 
 .filter-row select,
@@ -823,11 +822,12 @@ td input {
 
 }
 
-/* FIX REACT SELECT DROPDOWN LAYER */
+/* FORCE REACT SELECT ABOVE HEADER */
 .react-select__menu-portal {
-  z-index: 99999 !important;
+  position: fixed !important;
+  z-index: 999999 !important;
 }
 
 .react-select__menu {
-  z-index: 99999 !important;
+  z-index: 999999 !important;
 }
