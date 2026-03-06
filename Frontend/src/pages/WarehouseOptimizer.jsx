@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Select from "react-select";
 import BASE_URL from "../api";
 
 export default function WarehouseOptimizer() {
@@ -29,8 +30,9 @@ export default function WarehouseOptimizer() {
   const [groupCapacity, setGroupCapacity] = useState("");
   const [locationCapacity, setLocationCapacity] = useState("");
 
+
   // =========================
-  // LOAD FILTERS
+  // LOAD FILTER OPTIONS
   // =========================
   useEffect(() => {
 
@@ -112,32 +114,6 @@ export default function WarehouseOptimizer() {
 
 
   // =========================
-  // MULTI SELECT TOGGLE
-  // =========================
-  const toggleFilter = (key, value) => {
-
-    const current = filters[key];
-
-    if (current.includes(value)) {
-
-      setFilters({
-        ...filters,
-        [key]: current.filter(v => v !== value)
-      });
-
-    } else {
-
-      setFilters({
-        ...filters,
-        [key]: [...current, value]
-      });
-
-    }
-
-  };
-
-
-  // =========================
   // CLEAR FILTERS
   // =========================
   const clearFilters = () => {
@@ -183,91 +159,93 @@ export default function WarehouseOptimizer() {
 
 
           {/* RACK */}
-          <div className="multi-filter">
-            <label>Rack</label>
-            {[1,2,3,4,5,6,7,8,9].map(r => (
-              <label key={r}>
-                <input
-                  type="checkbox"
-                  checked={filters.rack.includes(String(r))}
-                  onChange={()=>toggleFilter("rack",String(r))}
-                />
-                {r}
-              </label>
-            ))}
-          </div>
+          <Select
+            isMulti
+            placeholder="Rack"
+            options={[1,2,3,4,5,6,7,8,9].map(r => ({
+              value: r,
+              label: `Rack ${r}`
+            }))}
+            value={filters.rack.map(r => ({ value: r, label:`Rack ${r}` }))}
+            onChange={(selected)=>
+              setFilters({
+                ...filters,
+                rack: selected ? selected.map(s=>s.value) : []
+              })
+            }
+          />
 
 
           {/* SHELF */}
-          <div className="multi-filter">
-            <label>Shelf</label>
-            {["A","B","C","D"].map(s => (
-              <label key={s}>
-                <input
-                  type="checkbox"
-                  checked={filters.shelf.includes(s)}
-                  onChange={()=>toggleFilter("shelf",s)}
-                />
-                {s}
-              </label>
-            ))}
-          </div>
+          <Select
+            isMulti
+            placeholder="Shelf"
+            options={["A","B","C","D"].map(s => ({
+              value: s,
+              label: `Shelf ${s}`
+            }))}
+            value={filters.shelf.map(s => ({ value:s, label:`Shelf ${s}` }))}
+            onChange={(selected)=>
+              setFilters({
+                ...filters,
+                shelf: selected ? selected.map(s=>s.value) : []
+              })
+            }
+          />
 
 
           {/* CATEGORY */}
-          <div className="multi-filter">
-            <label>Category</label>
-
-            {availableFilters.categories.map((c,i)=>(
-              <label key={i}>
-                <input
-                  type="checkbox"
-                  checked={filters.category.includes(c)}
-                  onChange={()=>toggleFilter("category",c)}
-                />
-                {c}
-              </label>
-            ))}
-
-          </div>
+          <Select
+            isMulti
+            placeholder="Category"
+            options={availableFilters.categories.map(c => ({
+              value:c,
+              label:c
+            }))}
+            value={filters.category.map(c=>({value:c,label:c}))}
+            onChange={(selected)=>
+              setFilters({
+                ...filters,
+                category: selected ? selected.map(s=>s.value) : []
+              })
+            }
+          />
 
 
           {/* BRAND */}
-          <div className="multi-filter">
-
-            <label>Brand</label>
-
-            {availableFilters.brands.map((b,i)=>(
-              <label key={i}>
-                <input
-                  type="checkbox"
-                  checked={filters.brand.includes(b)}
-                  onChange={()=>toggleFilter("brand",b)}
-                />
-                {b}
-              </label>
-            ))}
-
-          </div>
+          <Select
+            isMulti
+            placeholder="Brand"
+            options={availableFilters.brands.map(b => ({
+              value:b,
+              label:b
+            }))}
+            value={filters.brand.map(b=>({value:b,label:b}))}
+            onChange={(selected)=>
+              setFilters({
+                ...filters,
+                brand: selected ? selected.map(s=>s.value) : []
+              })
+            }
+          />
 
 
           {/* FLAVOUR */}
-          <div className="multi-filter">
-
-            <label>Flavour</label>
-
-            {flavours.map((f,i)=>(
-              <label key={i}>
-                <input
-                  type="checkbox"
-                  checked={filters.flavour.includes(f)}
-                  onChange={()=>toggleFilter("flavour",f)}
-                />
-                {f}
-              </label>
-            ))}
-
-          </div>
+          <Select
+            isMulti
+            placeholder="Flavour"
+            options={flavours.map(f => ({
+              value:f,
+              label:f
+            }))}
+            value={filters.flavour.map(f=>({value:f,label:f}))}
+            onChange={(selected)=>
+              setFilters({
+                ...filters,
+                flavour: selected ? selected.map(s=>s.value) : []
+              })
+            }
+          />
 
 
           {/* SEARCH */}
@@ -310,11 +288,9 @@ export default function WarehouseOptimizer() {
 
 
         <div className="dashboard-stats">
-
           <div>Total Locations: {totalLocations}</div>
           <div>Mixed Pallets: {mixedCount}</div>
           <div>Low Occupancy: {lowCount}</div>
-
         </div>
 
       </div>
@@ -360,9 +336,7 @@ export default function WarehouseOptimizer() {
                       <div className="flag blue">Empty Location</div>
                     )}
 
-                    <div>
-                      Capacity: {p.max_cartons}
-                    </div>
+                    <div>Capacity: {p.max_cartons}</div>
 
                     {p.is_mixed && (
                       <div className="flag red">Mixed SKU</div>
@@ -389,6 +363,7 @@ export default function WarehouseOptimizer() {
       </div>
 
     </div>
+
   );
 
 }
