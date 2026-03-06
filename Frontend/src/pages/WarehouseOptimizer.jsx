@@ -196,7 +196,6 @@ export default function WarehouseOptimizer() {
 
     <div className="dashboard-wrapper">
 
-      {/* HEADER */}
       <div className="dashboard-header">
 
         <div className="filter-row">
@@ -220,6 +219,8 @@ export default function WarehouseOptimizer() {
             components={{ Option: CheckboxOption }}
             menuPortalTarget={document.body}
             menuPosition="fixed"
+            menuPlacement="bottom"
+            maxMenuHeight={300}
             isMulti
             closeMenuOnSelect={false}
             options={[1,2,3,4,5,6,7,8,9].map(r => ({
@@ -238,6 +239,8 @@ export default function WarehouseOptimizer() {
             components={{ Option: CheckboxOption }}
             menuPortalTarget={document.body}
             menuPosition="fixed"
+            menuPlacement="bottom"
+            maxMenuHeight={300}
             isMulti
             closeMenuOnSelect={false}
             options={["A","B","C","D"].map(s => ({
@@ -256,6 +259,8 @@ export default function WarehouseOptimizer() {
             components={{ Option: CheckboxOption }}
             menuPortalTarget={document.body}
             menuPosition="fixed"
+            menuPlacement="bottom"
+            maxMenuHeight={300}
             isMulti
             closeMenuOnSelect={false}
             options={availableFilters.categories.map(c => ({
@@ -274,6 +279,8 @@ export default function WarehouseOptimizer() {
             components={{ Option: CheckboxOption }}
             menuPortalTarget={document.body}
             menuPosition="fixed"
+            menuPlacement="bottom"
+            maxMenuHeight={300}
             isMulti
             closeMenuOnSelect={false}
             options={availableFilters.brands.map(b => ({
@@ -292,6 +299,8 @@ export default function WarehouseOptimizer() {
             components={{ Option: CheckboxOption }}
             menuPortalTarget={document.body}
             menuPosition="fixed"
+            menuPlacement="bottom"
+            maxMenuHeight={300}
             isMulti
             closeMenuOnSelect={false}
             options={flavours.map(f => ({ value:f, label:f }))}
@@ -347,8 +356,6 @@ export default function WarehouseOptimizer() {
       </div>
 
 
-      {/* BODY */}
-
       <div className="dashboard-body">
 
         <div className="dashboard-grid">
@@ -397,7 +404,6 @@ export default function WarehouseOptimizer() {
         </div>
 
 
-        {/* SIDEBAR */}
         {selected && (
           <div className="dashboard-sidebar">
 
@@ -408,8 +414,6 @@ export default function WarehouseOptimizer() {
             <div>Occupancy: {selected.occupancy_percent}%</div>
             <div style={{marginTop:10}}>Capacity: {selected.max_cartons}</div>
 
-
-            {/* LOCATION CAPACITY */}
             <div style={{marginTop:20}}>
 
               <h4>Set Location Capacity</h4>
@@ -444,9 +448,6 @@ export default function WarehouseOptimizer() {
               </button>
 
             </div>
-
-
-            {/* PRODUCTS */}
 
             <h4 style={{marginTop:20}}>Products</h4>
 
