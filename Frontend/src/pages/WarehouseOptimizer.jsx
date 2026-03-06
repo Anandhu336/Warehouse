@@ -493,7 +493,55 @@ export default function WarehouseOptimizer() {
 
             <div>Occupancy: {selected.occupancy_percent}%</div>
 
-            <h4>Products</h4>
+            <div style={{marginTop:10}}>
+              Capacity: {selected.max_cartons}
+            </div>
+
+
+            {/* LOCATION CAPACITY SETTER */}
+
+            <div style={{marginTop:20}}>
+
+              <h4>Set Location Capacity</h4>
+
+              <input
+                type="number"
+                placeholder="New capacity"
+                value={locationCapacity}
+                onChange={(e)=>setLocationCapacity(e.target.value)}
+              />
+
+              <button
+                onClick={async ()=>{
+
+                  if(!locationCapacity) return;
+
+                  await fetch(`${BASE_URL}/optimizer/set-location-capacity`,{
+                    method:"POST",
+                    headers:{
+                      "Content-Type":"application/json"
+                    },
+                    body:JSON.stringify({
+                      location_code:selected.location_code,
+                      max_cartons:Number(locationCapacity)
+                    })
+                  });
+
+                  setLocationCapacity("");
+                  loadLocations();
+
+                }}
+              >
+                Update Location Capacity
+              </button>
+
+            </div>
+
+
+
+            {/* PRODUCTS */}
+
+            <h4 style={{marginTop:20}}>Products</h4>
 
             {selected.items?.map((item,i)=>(
               <div key={i} className="sku-row">
