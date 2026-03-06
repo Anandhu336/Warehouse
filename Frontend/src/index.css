@@ -519,8 +519,7 @@ td input {
   flex-wrap: wrap;
   margin-bottom: 12px;
 
-  max-height: 120px;
-  overflow-y: auto;
+  
 }
 
 .filter-row select,
