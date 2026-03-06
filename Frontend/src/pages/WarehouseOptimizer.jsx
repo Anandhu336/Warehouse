@@ -62,7 +62,6 @@ export default function WarehouseOptimizer() {
   const [locationCapacity, setLocationCapacity] = useState("");
 
 
-
   // =====================================================
   // SELECT STYLES
   // =====================================================
@@ -101,7 +100,6 @@ export default function WarehouseOptimizer() {
   };
 
 
-
   // =====================================================
   // LOAD FILTER OPTIONS
   // =====================================================
@@ -114,14 +112,12 @@ export default function WarehouseOptimizer() {
   }, []);
 
 
-
   // =====================================================
   // LOAD LOCATIONS
   // =====================================================
   useEffect(() => {
     loadLocations();
   }, [filters]);
-
 
 
   const loadLocations = () => {
@@ -160,7 +156,6 @@ export default function WarehouseOptimizer() {
   };
 
 
-
   // =====================================================
   // BRAND → FLAVOUR
   // =====================================================
@@ -183,7 +178,6 @@ export default function WarehouseOptimizer() {
   }, [filters.brand, filters.category]);
 
 
-
   // =====================================================
   // CLEAR FILTERS
   // =====================================================
@@ -204,11 +198,9 @@ export default function WarehouseOptimizer() {
   };
 
 
-
   const totalLocations = locations.length;
   const mixedCount = locations.filter(l => l.is_mixed).length;
   const lowCount = locations.filter(l => l.needs_merge).length;
-
 
 
   return (
@@ -235,7 +227,6 @@ export default function WarehouseOptimizer() {
           </select>
 
 
-
           {/* RACK */}
           <Select
             styles={selectStyles}
@@ -257,7 +248,6 @@ export default function WarehouseOptimizer() {
               })
             }
           />
-
 
 
           {/* SHELF */}
@@ -283,7 +273,6 @@ export default function WarehouseOptimizer() {
           />
 
 
-
           {/* CATEGORY */}
           <Select
             styles={selectStyles}
@@ -305,7 +294,6 @@ export default function WarehouseOptimizer() {
               })
             }
           />
-
 
 
           {/* BRAND */}
@@ -331,7 +319,6 @@ export default function WarehouseOptimizer() {
           />
 
 
-
           {/* FLAVOUR */}
           <Select
             styles={selectStyles}
@@ -355,7 +342,6 @@ export default function WarehouseOptimizer() {
           />
 
 
-
           {/* SEARCH */}
           <input
             type="text"
@@ -363,7 +349,6 @@ export default function WarehouseOptimizer() {
             value={filters.search}
             onChange={e => setFilters({ ...filters, search: e.target.value })}
           />
-
 
 
           {/* PALLET TYPE */}
@@ -377,7 +362,6 @@ export default function WarehouseOptimizer() {
           </select>
 
 
-
           {/* EMPTY */}
           <select
             value={filters.empty}
@@ -389,17 +373,12 @@ export default function WarehouseOptimizer() {
           </select>
 
 
-
-          {/* CLEAR FILTERS */}
           <button onClick={clearFilters} className="clear-btn">
             Clear Filters
           </button>
 
         </div>
 
-
-
-        {/* ================= STATS ================= */}
 
         <div className="dashboard-stats">
           <div>Total Locations: {totalLocations}</div>
@@ -447,21 +426,7 @@ export default function WarehouseOptimizer() {
 
                     <div>Cartons: {p.total_cartons}</div>
 
-                    {p.is_empty && (
-                      <div className="flag blue">Empty Location</div>
-                    )}
-
                     <div>Capacity: {p.max_cartons}</div>
-
-                    {p.is_mixed && (
-                      <div className="flag red">Mixed SKU</div>
-                    )}
-
-                    {p.needs_merge && (
-                      <div className="flag yellow">
-                        Low Occupancy — Merge Suggested
-                      </div>
-                    )}
 
                   </div>
 
@@ -482,10 +447,7 @@ export default function WarehouseOptimizer() {
         {selected && (
           <div className="dashboard-sidebar">
 
-            <button
-              onClick={() => setSelected(null)}
-              className="close-btn"
-            >
+            <button onClick={() => setSelected(null)} className="close-btn">
               ✕
             </button>
 
@@ -498,7 +460,7 @@ export default function WarehouseOptimizer() {
             </div>
 
 
-            {/* LOCATION CAPACITY SETTER */}
+            {/* LOCATION CAPACITY */}
 
             <div style={{marginTop:20}}>
 
@@ -538,8 +500,58 @@ export default function WarehouseOptimizer() {
             </div>
 
 
+            {/* GROUP CAPACITY */}
 
-            {/* PRODUCTS */}
+            {selected.items && selected.items.length > 0 && (
+
+              <div style={{marginTop:25}}>
+
+                <h4>Set Brand / Category Capacity</h4>
+
+                <div style={{fontSize:13,opacity:0.8}}>
+                  Brand: {selected.items[0].brand}
+                </div>
+
+                <div style={{fontSize:13,opacity:0.8,marginBottom:10}}>
+                  Category: {selected.items[0].category}
+                </div>
+
+                <input
+                  type="number"
+                  placeholder="Group capacity"
+                  value={groupCapacity}
+                  onChange={(e)=>setGroupCapacity(e.target.value)}
+                />
+
+                <button
+                  onClick={async ()=>{
+
+                    if(!groupCapacity) return;
+
+                    await fetch(`${BASE_URL}/optimizer/set-group-capacity`,{
+                      method:"POST",
+                      headers:{
+                        "Content-Type":"application/json"
+                      },
+                      body:JSON.stringify({
+                        brand:selected.items[0].brand,
+                        category:selected.items[0].category,
+                        max_cartons:Number(groupCapacity)
+                      })
+                    });
+
+                    setGroupCapacity("");
+                    loadLocations();
+
+                  }}
+                >
+                  Update Group Capacity
+                </button>
+
+              </div>
+
+            )}
+
 
             <h4 style={{marginTop:20}}>Products</h4>
 
