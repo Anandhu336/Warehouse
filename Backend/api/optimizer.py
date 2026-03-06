@@ -39,7 +39,7 @@ def get_filters():
 
 
 # =====================================================
-# BRAND → FLAVOUR (MULTI SUPPORT)
+# BRAND → FLAVOUR
 # =====================================================
 @router.get("/flavours")
 def get_flavours(
@@ -56,6 +56,7 @@ def get_flavours(
     params = {}
 
     if brand:
+
         brand_conditions = []
 
         for i, b in enumerate(brand):
@@ -65,7 +66,9 @@ def get_flavours(
 
         query += " AND (" + " OR ".join(brand_conditions) + ")"
 
+
     if category:
+
         category_conditions = []
 
         for i, c in enumerate(category):
@@ -74,6 +77,7 @@ def get_flavours(
             params[key] = f"%{c}%"
 
         query += " AND (" + " OR ".join(category_conditions) + ")"
+
 
     query += " ORDER BY product_name"
 
@@ -128,9 +132,12 @@ def get_locations(
     # AISLE FILTER
     # =====================================================
     if aisle:
+
         query += " AND UPPER(ls.location_code) LIKE :aisle"
         params["aisle"] = f"ELECTRA {aisle.upper()}%"
+
     else:
+
         query += """
             AND (
                 UPPER(ls.location_code) LIKE 'ELECTRA P%' OR
@@ -141,15 +148,15 @@ def get_locations(
             )
         """
 
+
     # =====================================================
-    # MULTI RACK FILTER
+    # RACK FILTER
     # =====================================================
     if rack:
 
         rack_conditions = []
 
         for i, r in enumerate(rack):
-
             key = f"rack_{i}"
             rack_conditions.append(f"UPPER(ls.location_code) LIKE :{key}")
             params[key] = f"%{r}-%"
@@ -158,14 +165,13 @@ def get_locations(
 
 
     # =====================================================
-    # MULTI SHELF FILTER
+    # SHELF FILTER
     # =====================================================
     if shelf:
 
         shelf_conditions = []
 
         for i, s in enumerate(shelf):
-
             key = f"shelf_{i}"
             shelf_conditions.append(f"UPPER(ls.location_code) LIKE :{key}")
             params[key] = f"%-{s.upper()}%"
@@ -174,14 +180,13 @@ def get_locations(
 
 
     # =====================================================
-    # MULTI CATEGORY FILTER
+    # CATEGORY FILTER
     # =====================================================
     if category:
 
         category_conditions = []
 
         for i, c in enumerate(category):
-
             key = f"cat_{i}"
             category_conditions.append(f"p.category ILIKE :{key}")
             params[key] = f"%{c}%"
@@ -190,14 +195,13 @@ def get_locations(
 
 
     # =====================================================
-    # MULTI BRAND FILTER
+    # BRAND FILTER
     # =====================================================
     if brand:
 
         brand_conditions = []
 
         for i, b in enumerate(brand):
-
             key = f"brand_{i}"
             brand_conditions.append(f"p.brand ILIKE :{key}")
             params[key] = f"%{b}%"
@@ -206,14 +210,13 @@ def get_locations(
 
 
     # =====================================================
-    # MULTI FLAVOUR FILTER
+    # FLAVOUR FILTER
     # =====================================================
     if flavour:
 
         flavour_conditions = []
 
         for i, f in enumerate(flavour):
-
             key = f"flavour_{i}"
             flavour_conditions.append(f"p.product_name ILIKE :{key}")
             params[key] = f"%{f}%"
@@ -316,7 +319,6 @@ def get_locations(
 
     result = []
 
-
     for location_code, items in grouped.items():
 
         total_cartons = sum(int(i["cartons"] or 0) for i in items) if items else 0
@@ -329,7 +331,6 @@ def get_locations(
 
 
         sku_count = sku_map.get(location_code, 0)
-
         is_mixed = sku_count > 1
 
 
@@ -341,6 +342,9 @@ def get_locations(
             category_val = ""
 
 
+        # =====================================================
+        # CAPACITY PRIORITY
+        # =====================================================
         if location_code in location_map:
 
             capacity = location_map[location_code]
@@ -385,3 +389,41 @@ def get_locations(
     result.sort(key=lambda x: x["location_code"])
 
     return result
+
+
+# =====================================================
+# SET GROUP CAPACITY
+# =====================================================
+@router.post("/set-group-capacity")
+def set_group_capacity(data: dict):
+
+    with engine.begin() as conn:
+
+        conn.execute(text("""
+            INSERT INTO product_group_capacity (brand, category, max_cartons)
+            VALUES (:brand, :category, :max_cartons)
+
+            ON CONFLICT (brand, category)
+            DO UPDATE SET max_cartons = EXCLUDED.max_cartons
+        """), data)
+
+    return {"status": "updated"}
+
+
+# =====================================================
+# SET LOCATION CAPACITY
+# =====================================================
+@router.post("/set-location-capacity")
+def set_location_capacity(data: dict):
+
+    with engine.begin() as conn:
+
+        conn.execute(text("""
+            INSERT INTO location_capacity (location_code, max_cartons)
+            VALUES (:location_code, :max_cartons)
+
+            ON CONFLICT (location_code)
+            DO UPDATE SET max_cartons = EXCLUDED.max_cartons
+        """), data)
+
+    return {"status": "updated"}
