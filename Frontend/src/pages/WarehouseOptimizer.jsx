@@ -25,6 +25,7 @@ export default function WarehouseOptimizer() {
   });
 
   const [flavours, setFlavours] = useState([]);
+
   const [groupCapacity, setGroupCapacity] = useState("");
   const [locationCapacity, setLocationCapacity] = useState("");
 
@@ -32,10 +33,13 @@ export default function WarehouseOptimizer() {
   // LOAD FILTERS
   // =========================
   useEffect(() => {
+
     fetch(`${BASE_URL}/optimizer/filters`)
       .then(res => res.json())
       .then(data => setAvailableFilters(data || { categories: [], brands: [] }));
+
   }, []);
+
 
   // =========================
   // LOAD LOCATIONS
@@ -43,6 +47,7 @@ export default function WarehouseOptimizer() {
   useEffect(() => {
     loadLocations();
   }, [filters]);
+
 
   const loadLocations = () => {
 
@@ -55,9 +60,13 @@ export default function WarehouseOptimizer() {
       if (!value || value === "ALL") return;
 
       if (Array.isArray(value)) {
+
         value.forEach(v => params.append(key, v));
+
       } else {
+
         params.append(key, value);
+
       }
 
     });
@@ -65,15 +74,20 @@ export default function WarehouseOptimizer() {
     fetch(`${BASE_URL}/optimizer/locations?${params.toString()}`)
       .then(res => res.json())
       .then(data => {
+
         setLocations(Array.isArray(data) ? data : []);
         setLoading(false);
+
       })
       .catch(() => {
+
         setLocations([]);
         setLoading(false);
+
       });
 
   };
+
 
   // =========================
   // BRAND → FLAVOUR
@@ -96,65 +110,60 @@ export default function WarehouseOptimizer() {
 
   }, [filters.brand, filters.category]);
 
-  // =========================
-  // MULTI SELECT HANDLER
-  // =========================
-  const handleMultiSelect = (e, key) => {
 
-    const values = Array.from(e.target.selectedOptions, option => option.value);
+  // =========================
+  // MULTI SELECT TOGGLE
+  // =========================
+  const toggleFilter = (key, value) => {
+
+    const current = filters[key];
+
+    if (current.includes(value)) {
+
+      setFilters({
+        ...filters,
+        [key]: current.filter(v => v !== value)
+      });
+
+    } else {
+
+      setFilters({
+        ...filters,
+        [key]: [...current, value]
+      });
+
+    }
+
+  };
+
+
+  // =========================
+  // CLEAR FILTERS
+  // =========================
+  const clearFilters = () => {
 
     setFilters({
-      ...filters,
-      [key]: values
+      aisle: "ALL",
+      rack: [],
+      shelf: [],
+      category: [],
+      brand: [],
+      flavour: [],
+      search: "",
+      pallet_type: "",
+      empty: "",
     });
 
   };
 
-  // =========================
-  // UPDATE CAPACITY
-  // =========================
-  const updateGroupCapacity = async () => {
-
-    if (!selected || !groupCapacity) return;
-
-    await fetch(`${BASE_URL}/optimizer/set-group-capacity`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        brand: selected.items?.[0]?.brand,
-        category: selected.items?.[0]?.category,
-        max_cartons: Number(groupCapacity)
-      }),
-    });
-
-    setGroupCapacity("");
-    loadLocations();
-
-  };
-
-  const updateLocationCapacity = async () => {
-
-    if (!selected || !locationCapacity) return;
-
-    await fetch(`${BASE_URL}/optimizer/set-location-capacity`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location_code: selected.location_code,
-        max_cartons: Number(locationCapacity)
-      }),
-    });
-
-    setLocationCapacity("");
-    loadLocations();
-
-  };
 
   const totalLocations = locations.length;
   const mixedCount = locations.filter(l => l.is_mixed).length;
   const lowCount = locations.filter(l => l.needs_merge).length;
 
+
   return (
+
     <div className="dashboard-wrapper">
 
       <div className="dashboard-header">
@@ -172,60 +181,94 @@ export default function WarehouseOptimizer() {
             ))}
           </select>
 
-          {/* RACK MULTI */}
-          <select
-            multiple
-            value={filters.rack}
-            onChange={(e)=>handleMultiSelect(e,"rack")}
-          >
+
+          {/* RACK */}
+          <div className="multi-filter">
+            <label>Rack</label>
             {[1,2,3,4,5,6,7,8,9].map(r => (
-              <option key={r} value={r}>{r}</option>
+              <label key={r}>
+                <input
+                  type="checkbox"
+                  checked={filters.rack.includes(String(r))}
+                  onChange={()=>toggleFilter("rack",String(r))}
+                />
+                {r}
+              </label>
             ))}
-          </select>
+          </div>
 
-          {/* SHELF MULTI */}
-          <select
-            multiple
-            value={filters.shelf}
-            onChange={(e)=>handleMultiSelect(e,"shelf")}
-          >
+
+          {/* SHELF */}
+          <div className="multi-filter">
+            <label>Shelf</label>
             {["A","B","C","D"].map(s => (
-              <option key={s} value={s}>{s}</option>
+              <label key={s}>
+                <input
+                  type="checkbox"
+                  checked={filters.shelf.includes(s)}
+                  onChange={()=>toggleFilter("shelf",s)}
+                />
+                {s}
+              </label>
             ))}
-          </select>
+          </div>
 
-          {/* CATEGORY MULTI */}
-          <select
-            multiple
-            value={filters.category}
-            onChange={(e)=>handleMultiSelect(e,"category")}
-          >
+
+          {/* CATEGORY */}
+          <div className="multi-filter">
+            <label>Category</label>
+
             {availableFilters.categories.map((c,i)=>(
-              <option key={i} value={c}>{c}</option>
+              <label key={i}>
+                <input
+                  type="checkbox"
+                  checked={filters.category.includes(c)}
+                  onChange={()=>toggleFilter("category",c)}
+                />
+                {c}
+              </label>
             ))}
-          </select>
 
-          {/* BRAND MULTI */}
-          <select
-            multiple
-            value={filters.brand}
-            onChange={(e)=>handleMultiSelect(e,"brand")}
-          >
+          </div>
+
+
+          {/* BRAND */}
+          <div className="multi-filter">
+
+            <label>Brand</label>
+
             {availableFilters.brands.map((b,i)=>(
-              <option key={i} value={b}>{b}</option>
+              <label key={i}>
+                <input
+                  type="checkbox"
+                  checked={filters.brand.includes(b)}
+                  onChange={()=>toggleFilter("brand",b)}
+                />
+                {b}
+              </label>
             ))}
-          </select>
 
-          {/* FLAVOUR MULTI */}
-          <select
-            multiple
-            value={filters.flavour}
-            onChange={(e)=>handleMultiSelect(e,"flavour")}
-          >
+          </div>
+
+
+          {/* FLAVOUR */}
+          <div className="multi-filter">
+
+            <label>Flavour</label>
+
             {flavours.map((f,i)=>(
-              <option key={i} value={f}>{f}</option>
+              <label key={i}>
+                <input
+                  type="checkbox"
+                  checked={filters.flavour.includes(f)}
+                  onChange={()=>toggleFilter("flavour",f)}
+                />
+                {f}
+              </label>
             ))}
-          </select>
+
+          </div>
+
 
           {/* SEARCH */}
           <input
@@ -234,6 +277,7 @@ export default function WarehouseOptimizer() {
             value={filters.search}
             onChange={e => setFilters({ ...filters, search: e.target.value })}
           />
+
 
           {/* PALLET TYPE */}
           <select
@@ -245,25 +289,38 @@ export default function WarehouseOptimizer() {
             <option value="mixed">Mixed</option>
           </select>
 
-          {/* EMPTY FILTER */}
+
+          {/* EMPTY */}
           <select
             value={filters.empty}
             onChange={e => setFilters({ ...filters, empty: e.target.value })}
           >
             <option value="">All Locations</option>
-            <option value="true">Empty Locations</option>
-            <option value="false">Occupied Locations</option>
+            <option value="true">Empty</option>
+            <option value="false">Occupied</option>
           </select>
+
+
+          {/* CLEAR FILTERS */}
+          <button onClick={clearFilters} className="clear-btn">
+            Clear Filters
+          </button>
 
         </div>
 
+
         <div className="dashboard-stats">
+
           <div>Total Locations: {totalLocations}</div>
           <div>Mixed Pallets: {mixedCount}</div>
           <div>Low Occupancy: {lowCount}</div>
+
         </div>
 
       </div>
+
+
+      {/* ================= BODY ================= */}
 
       <div className="dashboard-body">
 
@@ -282,12 +339,13 @@ export default function WarehouseOptimizer() {
                 const occupancy = p.occupancy_percent || 0;
 
                 return (
+
                   <div
                     key={i}
                     className={`optimizer-card 
-                      ${p.is_mixed ? "mixed" : ""} 
-                      ${p.needs_merge ? "low" : ""}
-                      ${p.is_empty ? "empty" : ""}`}
+                    ${p.is_mixed ? "mixed" : ""} 
+                    ${p.needs_merge ? "low" : ""}
+                    ${p.is_empty ? "empty" : ""}`}
                     onClick={()=>setSelected(p)}
                   >
 
@@ -304,9 +362,6 @@ export default function WarehouseOptimizer() {
 
                     <div>
                       Capacity: {p.max_cartons}
-                      {p.capacity_source==="location-override" && " (Manual)"}
-                      {p.capacity_source==="group-override" && " (Brand Override)"}
-                      {p.capacity_source==="default" && " (Default 30)"}
                     </div>
 
                     {p.is_mixed && (
@@ -320,7 +375,9 @@ export default function WarehouseOptimizer() {
                     )}
 
                   </div>
+
                 );
+
               })}
 
             </div>
@@ -333,4 +390,5 @@ export default function WarehouseOptimizer() {
 
     </div>
   );
+
 }

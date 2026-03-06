@@ -13,6 +13,7 @@ ALLOWED_AISLES = ["P", "Q", "R", "S", "T"]
 # =====================================================
 @router.get("/filters")
 def get_filters():
+
     with engine.begin() as conn:
 
         categories = conn.execute(text("""
@@ -38,12 +39,12 @@ def get_filters():
 
 
 # =====================================================
-# BRAND → FLAVOUR
+# BRAND → FLAVOUR (MULTI SUPPORT)
 # =====================================================
 @router.get("/flavours")
 def get_flavours(
-    brand: str | None = Query(None),
-    category: str | None = Query(None),
+    brand: list[str] | None = Query(None),
+    category: list[str] | None = Query(None),
 ):
 
     query = """
@@ -55,12 +56,24 @@ def get_flavours(
     params = {}
 
     if brand:
-        query += " AND brand ILIKE :brand"
-        params["brand"] = f"%{brand}%"
+        brand_conditions = []
+
+        for i, b in enumerate(brand):
+            key = f"brand_{i}"
+            brand_conditions.append(f"brand ILIKE :{key}")
+            params[key] = f"%{b}%"
+
+        query += " AND (" + " OR ".join(brand_conditions) + ")"
 
     if category:
-        query += " AND category ILIKE :category"
-        params["category"] = f"%{category}%"
+        category_conditions = []
+
+        for i, c in enumerate(category):
+            key = f"cat_{i}"
+            category_conditions.append(f"category ILIKE :{key}")
+            params[key] = f"%{c}%"
+
+        query += " AND (" + " OR ".join(category_conditions) + ")"
 
     query += " ORDER BY product_name"
 
@@ -75,6 +88,7 @@ def get_flavours(
 # =====================================================
 @router.get("/locations")
 def get_locations(
+
     aisle: str | None = Query(None),
 
     rack: list[str] | None = Query(None),
@@ -131,69 +145,91 @@ def get_locations(
     # MULTI RACK FILTER
     # =====================================================
     if rack:
+
         rack_conditions = []
+
         for i, r in enumerate(rack):
+
             key = f"rack_{i}"
             rack_conditions.append(f"UPPER(ls.location_code) LIKE :{key}")
             params[key] = f"%{r}-%"
 
         query += " AND (" + " OR ".join(rack_conditions) + ")"
 
+
     # =====================================================
     # MULTI SHELF FILTER
     # =====================================================
     if shelf:
+
         shelf_conditions = []
+
         for i, s in enumerate(shelf):
+
             key = f"shelf_{i}"
             shelf_conditions.append(f"UPPER(ls.location_code) LIKE :{key}")
             params[key] = f"%-{s.upper()}%"
 
         query += " AND (" + " OR ".join(shelf_conditions) + ")"
 
+
     # =====================================================
     # MULTI CATEGORY FILTER
     # =====================================================
     if category:
+
         category_conditions = []
+
         for i, c in enumerate(category):
+
             key = f"cat_{i}"
             category_conditions.append(f"p.category ILIKE :{key}")
             params[key] = f"%{c}%"
 
         query += " AND (" + " OR ".join(category_conditions) + ")"
 
+
     # =====================================================
     # MULTI BRAND FILTER
     # =====================================================
     if brand:
+
         brand_conditions = []
+
         for i, b in enumerate(brand):
+
             key = f"brand_{i}"
             brand_conditions.append(f"p.brand ILIKE :{key}")
             params[key] = f"%{b}%"
 
         query += " AND (" + " OR ".join(brand_conditions) + ")"
 
+
     # =====================================================
     # MULTI FLAVOUR FILTER
     # =====================================================
     if flavour:
+
         flavour_conditions = []
+
         for i, f in enumerate(flavour):
+
             key = f"flavour_{i}"
             flavour_conditions.append(f"p.product_name ILIKE :{key}")
             params[key] = f"%{f}%"
 
         query += " AND (" + " OR ".join(flavour_conditions) + ")"
 
+
     # =====================================================
     # SMART SEARCH
     # =====================================================
     if search:
+
         words = search.strip().split()
 
         for i, word in enumerate(words):
+
             key = f"search_{i}"
 
             query += f"""
@@ -205,6 +241,7 @@ def get_locations(
             """
 
             params[key] = f"%{word}%"
+
 
     with engine.begin() as conn:
 
@@ -228,7 +265,9 @@ def get_locations(
             FROM location_capacity
         """)).mappings().all()
 
+
     sku_map = {r["location_code"]: r["sku_count"] for r in sku_counts}
+
 
     group_map = {
         (r["brand"].strip().lower(), r["category"].strip().lower()):
@@ -236,15 +275,18 @@ def get_locations(
         for r in group_overrides
     }
 
+
     location_map = {
         r["location_code"]: int(r["max_cartons"])
         for r in location_overrides
     }
 
+
     grouped = defaultdict(list)
 
     for row in rows:
         grouped[row["location_code"]].append(row)
+
 
     # =====================================================
     # GENERATE EMPTY PALLETS
@@ -254,21 +296,26 @@ def get_locations(
     else:
         aisles_to_generate = ALLOWED_AISLES
 
+
     all_locations = set()
 
     for aisle_letter in aisles_to_generate:
         for rack_num in range(1, 10):
             for shelf_letter in ["A", "B", "C", "D"]:
                 for pos in range(1, 4):
+
                     code = f"ELECTRA {aisle_letter}{rack_num}-{shelf_letter}{pos}"
                     all_locations.add(code)
+
 
     existing_locations = set(grouped.keys())
 
     for loc in all_locations - existing_locations:
         grouped[loc] = []
 
+
     result = []
+
 
     for location_code, items in grouped.items():
 
@@ -276,11 +323,15 @@ def get_locations(
 
         if empty is True and items:
             continue
+
         if empty is False and not items:
             continue
 
+
         sku_count = sku_map.get(location_code, 0)
+
         is_mixed = sku_count > 1
+
 
         if items:
             brand_val = items[0]["brand"].strip().lower()
@@ -289,19 +340,25 @@ def get_locations(
             brand_val = ""
             category_val = ""
 
+
         if location_code in location_map:
+
             capacity = location_map[location_code]
             source = "location-override"
 
         elif (brand_val, category_val) in group_map:
+
             capacity = group_map[(brand_val, category_val)]
             source = "group-override"
 
         else:
+
             capacity = 30
             source = "default"
 
+
         occupancy = round((total_cartons / capacity) * 100, 1) if capacity else 0
+
 
         if pallet_type == "mixed" and not is_mixed:
             continue
@@ -309,7 +366,9 @@ def get_locations(
         if pallet_type == "single" and is_mixed:
             continue
 
+
         result.append({
+
             "location_code": location_code,
             "total_cartons": total_cartons,
             "max_cartons": capacity,
@@ -319,7 +378,9 @@ def get_locations(
             "needs_merge": occupancy < 60,
             "is_empty": len(items) == 0,
             "items": items,
+
         })
+
 
     result.sort(key=lambda x: x["location_code"])
 
