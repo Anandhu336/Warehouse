@@ -3,19 +3,13 @@ import Select, { components } from "react-select";
 import BASE_URL from "../api";
 
 
-// =====================================================
-// CHECKBOX OPTION FOR DROPDOWN
-// =====================================================
+// ================================
+// Checkbox option
+// ================================
 const CheckboxOption = (props) => {
   return (
     <components.Option {...props}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          padding: "4px 6px"
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "center" }}>
         <input
           type="checkbox"
           checked={props.isSelected}
@@ -26,6 +20,47 @@ const CheckboxOption = (props) => {
       </div>
     </components.Option>
   );
+};
+
+
+// ================================
+// Select styles
+// ================================
+const selectStyles = {
+
+  control: (base) => ({
+    ...base,
+    backgroundColor: "#0f172a",
+    borderColor: "#334155",
+    color: "white",
+    minWidth: 180
+  }),
+
+  menu: (base) => ({
+    ...base,
+    backgroundColor: "#ffffff",
+    color: "#000"
+  }),
+
+  menuPortal: (base) => ({
+    ...base,
+    zIndex: 9999
+  }),
+
+  option: (base) => ({
+    ...base,
+    padding: 6
+  }),
+
+  multiValue: (base) => ({
+    ...base,
+    backgroundColor: "#e5e7eb"
+  }),
+
+  multiValueLabel: (base) => ({
+    ...base,
+    color: "#000"
+  })
 };
 
 
@@ -44,12 +79,12 @@ export default function WarehouseOptimizer() {
     flavour: [],
     search: "",
     pallet_type: "",
-    empty: "",
+    empty: ""
   });
 
   const [availableFilters, setAvailableFilters] = useState({
     categories: [],
-    brands: [],
+    brands: []
   });
 
   const [flavours, setFlavours] = useState([]);
@@ -58,47 +93,9 @@ export default function WarehouseOptimizer() {
   const [locationCapacity, setLocationCapacity] = useState("");
 
 
-  // =====================================================
-  // REACT SELECT STYLES
-  // =====================================================
-  const selectStyles = {
-
-    control: (base) => ({
-      ...base,
-      backgroundColor: "#0f172a",
-      borderColor: "#334155",
-      color: "white",
-      minWidth: 180
-    }),
-
-    menu: (base) => ({
-      ...base,
-      backgroundColor: "#ffffff",
-      color: "#000"
-    }),
-
-    option: (base) => ({
-      ...base,
-      padding: 0,
-      color: "#000"
-    }),
-
-    multiValue: (base) => ({
-      ...base,
-      backgroundColor: "#e5e7eb"
-    }),
-
-    multiValueLabel: (base) => ({
-      ...base,
-      color: "#000"
-    }),
-
-  };
-
-
-  // =====================================================
-  // LOAD FILTER OPTIONS
-  // =====================================================
+  // ================================
+  // Load filter values
+  // ================================
   useEffect(() => {
 
     fetch(`${BASE_URL}/optimizer/filters`)
@@ -108,9 +105,9 @@ export default function WarehouseOptimizer() {
   }, []);
 
 
-  // =====================================================
-  // LOAD LOCATIONS
-  // =====================================================
+  // ================================
+  // Load locations
+  // ================================
   useEffect(() => {
     loadLocations();
   }, [filters]);
@@ -137,24 +134,20 @@ export default function WarehouseOptimizer() {
     fetch(`${BASE_URL}/optimizer/locations?${params.toString()}`)
       .then(res => res.json())
       .then(data => {
-
         setLocations(Array.isArray(data) ? data : []);
         setLoading(false);
-
       })
       .catch(() => {
-
         setLocations([]);
         setLoading(false);
-
       });
 
   };
 
 
-  // =====================================================
-  // BRAND → FLAVOUR
-  // =====================================================
+  // ================================
+  // Brand → flavour loading
+  // ================================
   useEffect(() => {
 
     if (filters.brand.length === 0 && filters.category.length === 0) {
@@ -174,9 +167,9 @@ export default function WarehouseOptimizer() {
   }, [filters.brand, filters.category]);
 
 
-  // =====================================================
-  // CLEAR FILTERS
-  // =====================================================
+  // ================================
+  // Clear filters
+  // ================================
   const clearFilters = () => {
 
     setFilters({
@@ -188,7 +181,7 @@ export default function WarehouseOptimizer() {
       flavour: [],
       search: "",
       pallet_type: "",
-      empty: "",
+      empty: ""
     });
 
   };
@@ -204,7 +197,6 @@ export default function WarehouseOptimizer() {
     <div className="dashboard-wrapper">
 
       {/* HEADER */}
-
       <div className="dashboard-header">
 
         <div className="filter-row">
@@ -212,7 +204,7 @@ export default function WarehouseOptimizer() {
           {/* AISLE */}
           <select
             value={filters.aisle}
-            onChange={e => setFilters({ ...filters, aisle: e.target.value })}
+            onChange={(e) => setFilters({ ...filters, aisle: e.target.value })}
           >
             <option value="ALL">All Aisles</option>
             {["P","Q","R","S","T"].map(a => (
@@ -223,126 +215,88 @@ export default function WarehouseOptimizer() {
 
           {/* RACK */}
           <Select
+            classNamePrefix="react-select"
             styles={selectStyles}
             components={{ Option: CheckboxOption }}
-            closeMenuOnSelect={false}
-            hideSelectedOptions={false}
             menuPortalTarget={document.body}
             menuPosition="fixed"
-            isSearchable
             isMulti
-            placeholder="Rack"
+            closeMenuOnSelect={false}
             options={[1,2,3,4,5,6,7,8,9].map(r => ({
               value:r,
               label:`Rack ${r}`
             }))}
             value={filters.rack.map(r => ({ value:r, label:`Rack ${r}` }))}
-            onChange={(selected)=>
-              setFilters({
-                ...filters,
-                rack: selected ? selected.map(s=>s.value) : []
-              })
-            }
+            onChange={(v)=>setFilters({...filters, rack: v ? v.map(x=>x.value) : []})}
           />
 
 
           {/* SHELF */}
           <Select
+            classNamePrefix="react-select"
             styles={selectStyles}
             components={{ Option: CheckboxOption }}
-            closeMenuOnSelect={false}
-            hideSelectedOptions={false}
             menuPortalTarget={document.body}
             menuPosition="fixed"
-            isSearchable
             isMulti
-            placeholder="Shelf"
+            closeMenuOnSelect={false}
             options={["A","B","C","D"].map(s => ({
               value:s,
               label:`Shelf ${s}`
             }))}
             value={filters.shelf.map(s => ({ value:s, label:`Shelf ${s}` }))}
-            onChange={(selected)=>
-              setFilters({
-                ...filters,
-                shelf: selected ? selected.map(s=>s.value) : []
-              })
-            }
+            onChange={(v)=>setFilters({...filters, shelf: v ? v.map(x=>x.value) : []})}
           />
 
 
           {/* CATEGORY */}
           <Select
+            classNamePrefix="react-select"
             styles={selectStyles}
             components={{ Option: CheckboxOption }}
-            closeMenuOnSelect={false}
-            hideSelectedOptions={false}
             menuPortalTarget={document.body}
             menuPosition="fixed"
-            isSearchable
             isMulti
-            placeholder="Category"
+            closeMenuOnSelect={false}
             options={availableFilters.categories.map(c => ({
               value:c,
               label:c
             }))}
             value={filters.category.map(c => ({ value:c, label:c }))}
-            onChange={(selected)=>
-              setFilters({
-                ...filters,
-                category: selected ? selected.map(s=>s.value) : []
-              })
-            }
+            onChange={(v)=>setFilters({...filters, category: v ? v.map(x=>x.value) : []})}
           />
 
 
           {/* BRAND */}
           <Select
+            classNamePrefix="react-select"
             styles={selectStyles}
             components={{ Option: CheckboxOption }}
-            closeMenuOnSelect={false}
-            hideSelectedOptions={false}
             menuPortalTarget={document.body}
             menuPosition="fixed"
-            isSearchable
             isMulti
-            placeholder="Brand"
+            closeMenuOnSelect={false}
             options={availableFilters.brands.map(b => ({
               value:b,
               label:b
             }))}
             value={filters.brand.map(b => ({ value:b, label:b }))}
-            onChange={(selected)=>
-              setFilters({
-                ...filters,
-                brand: selected ? selected.map(s=>s.value) : []
-              })
-            }
+            onChange={(v)=>setFilters({...filters, brand: v ? v.map(x=>x.value) : []})}
           />
 
 
           {/* FLAVOUR */}
           <Select
+            classNamePrefix="react-select"
             styles={selectStyles}
             components={{ Option: CheckboxOption }}
-            closeMenuOnSelect={false}
-            hideSelectedOptions={false}
             menuPortalTarget={document.body}
             menuPosition="fixed"
-            isSearchable
             isMulti
-            placeholder="Flavour"
-            options={flavours.map(f => ({
-              value:f,
-              label:f
-            }))}
+            closeMenuOnSelect={false}
+            options={flavours.map(f => ({ value:f, label:f }))}
             value={filters.flavour.map(f => ({ value:f, label:f }))}
-            onChange={(selected)=>
-              setFilters({
-                ...filters,
-                flavour: selected ? selected.map(s=>s.value) : []
-              })
-            }
+            onChange={(v)=>setFilters({...filters, flavour: v ? v.map(x=>x.value) : []})}
           />
 
 
@@ -351,14 +305,14 @@ export default function WarehouseOptimizer() {
             type="text"
             placeholder="Search SKU, Product or Location"
             value={filters.search}
-            onChange={e => setFilters({ ...filters, search: e.target.value })}
+            onChange={(e)=>setFilters({...filters, search:e.target.value})}
           />
 
 
           {/* PALLET TYPE */}
           <select
             value={filters.pallet_type}
-            onChange={e => setFilters({ ...filters, pallet_type: e.target.value })}
+            onChange={(e)=>setFilters({...filters, pallet_type:e.target.value})}
           >
             <option value="">All Pallets</option>
             <option value="single">Single SKU</option>
@@ -369,7 +323,7 @@ export default function WarehouseOptimizer() {
           {/* EMPTY */}
           <select
             value={filters.empty}
-            onChange={e => setFilters({ ...filters, empty: e.target.value })}
+            onChange={(e)=>setFilters({...filters, empty:e.target.value})}
           >
             <option value="">All Locations</option>
             <option value="true">Empty</option>
@@ -391,7 +345,6 @@ export default function WarehouseOptimizer() {
         </div>
 
       </div>
-
 
 
       {/* BODY */}
@@ -429,7 +382,6 @@ export default function WarehouseOptimizer() {
                     </div>
 
                     <div>Cartons: {p.total_cartons}</div>
-
                     <div>Capacity: {p.max_cartons}</div>
 
                   </div>
@@ -445,27 +397,19 @@ export default function WarehouseOptimizer() {
         </div>
 
 
-
         {/* SIDEBAR */}
-
         {selected && (
           <div className="dashboard-sidebar">
 
-            <button onClick={() => setSelected(null)} className="close-btn">
-              ✕
-            </button>
+            <button onClick={()=>setSelected(null)}>✕</button>
 
             <h3>{selected.location_code}</h3>
 
             <div>Occupancy: {selected.occupancy_percent}%</div>
-
-            <div style={{marginTop:10}}>
-              Capacity: {selected.max_cartons}
-            </div>
+            <div style={{marginTop:10}}>Capacity: {selected.max_cartons}</div>
 
 
             {/* LOCATION CAPACITY */}
-
             <div style={{marginTop:20}}>
 
               <h4>Set Location Capacity</h4>
@@ -475,7 +419,6 @@ export default function WarehouseOptimizer() {
                 placeholder="New capacity"
                 value={locationCapacity}
                 onChange={(e)=>setLocationCapacity(e.target.value)}
-                style={{marginRight:10}}
               />
 
               <button
@@ -485,9 +428,7 @@ export default function WarehouseOptimizer() {
 
                   await fetch(`${BASE_URL}/optimizer/set-location-capacity`,{
                     method:"POST",
-                    headers:{
-                      "Content-Type":"application/json"
-                    },
+                    headers:{ "Content-Type":"application/json" },
                     body:JSON.stringify({
                       location_code:selected.location_code,
                       max_cartons:Number(locationCapacity)
@@ -505,66 +446,13 @@ export default function WarehouseOptimizer() {
             </div>
 
 
-            {/* GROUP CAPACITY */}
-
-            {selected.items && selected.items.length > 0 && (
-
-              <div style={{marginTop:25}}>
-
-                <h4>Set Brand / Category Capacity</h4>
-
-                <div style={{fontSize:13,opacity:0.8}}>
-                  Brand: {selected.items[0].brand}
-                </div>
-
-                <div style={{fontSize:13,opacity:0.8,marginBottom:10}}>
-                  Category: {selected.items[0].category}
-                </div>
-
-                <input
-                  type="number"
-                  placeholder="Group capacity"
-                  value={groupCapacity}
-                  onChange={(e)=>setGroupCapacity(e.target.value)}
-                  style={{marginRight:10}}
-                />
-
-                <button
-                  onClick={async ()=>{
-
-                    if(!groupCapacity) return;
-
-                    await fetch(`${BASE_URL}/optimizer/set-group-capacity`,{
-                      method:"POST",
-                      headers:{
-                        "Content-Type":"application/json"
-                      },
-                      body:JSON.stringify({
-                        brand:selected.items[0].brand,
-                        category:selected.items[0].category,
-                        max_cartons:Number(groupCapacity)
-                      })
-                    });
-
-                    setGroupCapacity("");
-                    loadLocations();
-
-                  }}
-                >
-                  Update Group Capacity
-                </button>
-
-              </div>
-
-            )}
-
+            {/* PRODUCTS */}
 
             <h4 style={{marginTop:20}}>Products</h4>
 
             {selected.items?.map((item,i)=>(
-              <div key={i} className="sku-row">
-                <div>{item.product_name}</div>
-                <div>{item.cartons} cartons</div>
+              <div key={i}>
+                {item.product_name} — {item.cartons} cartons
               </div>
             ))}
 
@@ -576,5 +464,4 @@ export default function WarehouseOptimizer() {
     </div>
 
   );
-
 }
