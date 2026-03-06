@@ -549,7 +549,6 @@ td input {
   padding: 20px;
 
   min-height: 0;
-  overflow: hidden;   /* 🔥 THIS FIXES PAGE SCROLL */
 }
 /* ===== GRID ===== */
 
@@ -825,10 +824,10 @@ td input {
 }
 
 /* FIX REACT SELECT DROPDOWN LAYER */
-.react-select__menu {
-  z-index: 9999;
+.react-select__menu-portal {
+  z-index: 99999 !important;
 }
 
-.react-select__menu-portal {
-  z-index: 9999;
+.react-select__menu {
+  z-index: 99999 !important;
 }
