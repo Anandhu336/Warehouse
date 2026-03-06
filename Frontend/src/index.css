@@ -518,6 +518,9 @@ td input {
   gap: 12px;
   flex-wrap: wrap;
   margin-bottom: 12px;
+
+  max-height: 120px;
+  overflow-y: auto;
 }
 
 .filter-row select,
@@ -540,12 +543,14 @@ td input {
 /* ===== BODY LAYOUT ===== */
 
 .dashboard-body {
-  flex: 1;            /* 🔥 THIS IS IMPORTANT */
+  flex: 1;
   display: grid;
   grid-template-columns: 1fr 380px;
   gap: 20px;
   padding: 20px;
+
   min-height: 0;
+  overflow: hidden;   /* 🔥 THIS FIXES PAGE SCROLL */
 }
 /* ===== GRID ===== */
 
@@ -553,6 +558,7 @@ td input {
   overflow-y: auto;
   padding-right: 10px;
   min-height: 0;
+  height: 100%;
 }
 
 .card-grid {
@@ -634,8 +640,9 @@ td input {
   padding: 22px;
   border-radius: 14px;
   border: 1px solid #1f2937;
-  max-height: 85vh;      /* 🔥 limit height */
-  overflow-y: auto;      /* scroll only inside */
+
+  height: 100%;
+  overflow-y: auto;
 }
 
 /* ===============================
