@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import Select from "react-select";
+import Select, { components } from "react-select";
 import BASE_URL from "../api";
 
 
@@ -7,29 +7,25 @@ import BASE_URL from "../api";
 // CHECKBOX OPTION FOR DROPDOWN
 // =====================================================
 const CheckboxOption = (props) => {
-
-  const { innerProps, isSelected, label } = props;
-
   return (
-    <div
-      {...innerProps}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        padding: "6px 10px",
-        cursor: "pointer"
-      }}
-    >
-      <input
-        type="checkbox"
-        checked={isSelected}
-        readOnly
-        style={{ marginRight: 8 }}
-      />
-      <span>{label}</span>
-    </div>
+    <components.Option {...props}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          padding: "4px 6px"
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={props.isSelected}
+          readOnly
+          style={{ marginRight: 8 }}
+        />
+        {props.label}
+      </div>
+    </components.Option>
   );
-
 };
 
 
@@ -63,7 +59,7 @@ export default function WarehouseOptimizer() {
 
 
   // =====================================================
-  // SELECT STYLES
+  // REACT SELECT STYLES
   // =====================================================
   const selectStyles = {
 
@@ -207,13 +203,11 @@ export default function WarehouseOptimizer() {
 
     <div className="dashboard-wrapper">
 
-
-      {/* ================= HEADER ================= */}
+      {/* HEADER */}
 
       <div className="dashboard-header">
 
         <div className="filter-row">
-
 
           {/* AISLE */}
           <select
@@ -233,6 +227,8 @@ export default function WarehouseOptimizer() {
             components={{ Option: CheckboxOption }}
             closeMenuOnSelect={false}
             hideSelectedOptions={false}
+            menuPortalTarget={document.body}
+            menuPosition="fixed"
             isSearchable
             isMulti
             placeholder="Rack"
@@ -256,6 +252,8 @@ export default function WarehouseOptimizer() {
             components={{ Option: CheckboxOption }}
             closeMenuOnSelect={false}
             hideSelectedOptions={false}
+            menuPortalTarget={document.body}
+            menuPosition="fixed"
             isSearchable
             isMulti
             placeholder="Shelf"
@@ -279,6 +277,8 @@ export default function WarehouseOptimizer() {
             components={{ Option: CheckboxOption }}
             closeMenuOnSelect={false}
             hideSelectedOptions={false}
+            menuPortalTarget={document.body}
+            menuPosition="fixed"
             isSearchable
             isMulti
             placeholder="Category"
@@ -302,6 +302,8 @@ export default function WarehouseOptimizer() {
             components={{ Option: CheckboxOption }}
             closeMenuOnSelect={false}
             hideSelectedOptions={false}
+            menuPortalTarget={document.body}
+            menuPosition="fixed"
             isSearchable
             isMulti
             placeholder="Brand"
@@ -325,6 +327,8 @@ export default function WarehouseOptimizer() {
             components={{ Option: CheckboxOption }}
             closeMenuOnSelect={false}
             hideSelectedOptions={false}
+            menuPortalTarget={document.body}
+            menuPosition="fixed"
             isSearchable
             isMulti
             placeholder="Flavour"
@@ -390,7 +394,7 @@ export default function WarehouseOptimizer() {
 
 
 
-      {/* ================= BODY ================= */}
+      {/* BODY */}
 
       <div className="dashboard-body">
 
@@ -442,7 +446,7 @@ export default function WarehouseOptimizer() {
 
 
 
-        {/* ================= SIDEBAR ================= */}
+        {/* SIDEBAR */}
 
         {selected && (
           <div className="dashboard-sidebar">
@@ -471,6 +475,7 @@ export default function WarehouseOptimizer() {
                 placeholder="New capacity"
                 value={locationCapacity}
                 onChange={(e)=>setLocationCapacity(e.target.value)}
+                style={{marginRight:10}}
               />
 
               <button
@@ -521,6 +526,7 @@ export default function WarehouseOptimizer() {
                   placeholder="Group capacity"
                   value={groupCapacity}
                   onChange={(e)=>setGroupCapacity(e.target.value)}
+                  style={{marginRight:10}}
                 />
 
                 <button
