@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Select, { components } from "react-select";
 import BASE_URL from "../api";
 
@@ -69,6 +69,8 @@ export default function WarehouseOptimizer() {
   const [locations, setLocations] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const sidebarRef = useRef(null);   // ⭐ sidebar reference
 
   const [filters, setFilters] = useState({
     aisle: "ALL",
@@ -168,6 +170,23 @@ export default function WarehouseOptimizer() {
 
 
   // ================================
+  // Scroll to sidebar when pallet selected
+  // ================================
+  useEffect(() => {
+
+    if (selected && sidebarRef.current) {
+
+      sidebarRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+
+    }
+
+  }, [selected]);
+
+
+  // ================================
   // Clear filters
   // ================================
   const clearFilters = () => {
@@ -211,6 +230,7 @@ export default function WarehouseOptimizer() {
           </select>
 
 
+          {/* RACK */}
           <Select
             classNamePrefix="react-select"
             styles={selectStyles}
@@ -229,7 +249,7 @@ export default function WarehouseOptimizer() {
             onChange={(v)=>setFilters({...filters, rack: v ? v.map(x=>x.value) : []})}
           />
 
-
+          {/* SHELF */}
           <Select
             classNamePrefix="react-select"
             styles={selectStyles}
@@ -248,7 +268,7 @@ export default function WarehouseOptimizer() {
             onChange={(v)=>setFilters({...filters, shelf: v ? v.map(x=>x.value) : []})}
           />
 
-
+          {/* CATEGORY */}
           <Select
             classNamePrefix="react-select"
             styles={selectStyles}
@@ -267,7 +287,7 @@ export default function WarehouseOptimizer() {
             onChange={(v)=>setFilters({...filters, category: v ? v.map(x=>x.value) : []})}
           />
 
-
+          {/* BRAND */}
           <Select
             classNamePrefix="react-select"
             styles={selectStyles}
@@ -286,7 +306,7 @@ export default function WarehouseOptimizer() {
             onChange={(v)=>setFilters({...filters, brand: v ? v.map(x=>x.value) : []})}
           />
 
-
+          {/* FLAVOUR */}
           <Select
             classNamePrefix="react-select"
             styles={selectStyles}
@@ -302,14 +322,12 @@ export default function WarehouseOptimizer() {
             onChange={(v)=>setFilters({...filters, flavour: v ? v.map(x=>x.value) : []})}
           />
 
-
           <input
             type="text"
             placeholder="Search SKU, Product or Location"
             value={filters.search}
             onChange={(e)=>setFilters({...filters, search:e.target.value})}
           />
-
 
           <select
             value={filters.pallet_type}
@@ -320,7 +338,6 @@ export default function WarehouseOptimizer() {
             <option value="mixed">Mixed</option>
           </select>
 
-
           <select
             value={filters.empty}
             onChange={(e)=>setFilters({...filters, empty:e.target.value})}
@@ -329,7 +346,6 @@ export default function WarehouseOptimizer() {
             <option value="true">Empty</option>
             <option value="false">Occupied</option>
           </select>
-
 
           <button onClick={clearFilters}>
             Clear Filters
@@ -396,7 +412,7 @@ export default function WarehouseOptimizer() {
 
 
         {selected && (
-          <div className="dashboard-sidebar">
+          <div className="dashboard-sidebar" ref={sidebarRef}>
 
             <button onClick={()=>setSelected(null)}>✕</button>
 
@@ -405,8 +421,8 @@ export default function WarehouseOptimizer() {
             <div>Occupancy: {selected.occupancy_percent}%</div>
             <div style={{marginTop:10}}>Capacity: {selected.max_cartons}</div>
 
-
             {/* LOCATION CAPACITY */}
+
             <div style={{marginTop:20}}>
 
               <h4>Set Location Capacity</h4>
@@ -444,6 +460,7 @@ export default function WarehouseOptimizer() {
 
 
             {/* GROUP CAPACITY */}
+
             {selected.items && selected.items.length > 0 && (
 
               <div style={{marginTop:25}}>
@@ -493,7 +510,6 @@ export default function WarehouseOptimizer() {
               </div>
 
             )}
-
 
             <h4 style={{marginTop:20}}>Products</h4>
 
