@@ -495,7 +495,7 @@ td input {
 =================================== */
 
 .dashboard-wrapper {
-  height: 100vh;      /* 🔥 CHANGE from min-height */
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   background: #0f172a;
@@ -546,8 +546,6 @@ td input {
   grid-template-columns: 1fr 380px;
   gap: 20px;
   padding: 20px;
-
-  min-height: 0;
 }
 /* ===== GRID ===== */
 
