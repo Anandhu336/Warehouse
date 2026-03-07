@@ -200,7 +200,6 @@ export default function WarehouseOptimizer() {
 
         <div className="filter-row">
 
-          {/* AISLE */}
           <select
             value={filters.aisle}
             onChange={(e) => setFilters({ ...filters, aisle: e.target.value })}
@@ -212,7 +211,6 @@ export default function WarehouseOptimizer() {
           </select>
 
 
-          {/* RACK */}
           <Select
             classNamePrefix="react-select"
             styles={selectStyles}
@@ -232,7 +230,6 @@ export default function WarehouseOptimizer() {
           />
 
 
-          {/* SHELF */}
           <Select
             classNamePrefix="react-select"
             styles={selectStyles}
@@ -252,7 +249,6 @@ export default function WarehouseOptimizer() {
           />
 
 
-          {/* CATEGORY */}
           <Select
             classNamePrefix="react-select"
             styles={selectStyles}
@@ -272,7 +268,6 @@ export default function WarehouseOptimizer() {
           />
 
 
-          {/* BRAND */}
           <Select
             classNamePrefix="react-select"
             styles={selectStyles}
@@ -292,7 +287,6 @@ export default function WarehouseOptimizer() {
           />
 
 
-          {/* FLAVOUR */}
           <Select
             classNamePrefix="react-select"
             styles={selectStyles}
@@ -309,7 +303,6 @@ export default function WarehouseOptimizer() {
           />
 
 
-          {/* SEARCH */}
           <input
             type="text"
             placeholder="Search SKU, Product or Location"
@@ -318,7 +311,6 @@ export default function WarehouseOptimizer() {
           />
 
 
-          {/* PALLET TYPE */}
           <select
             value={filters.pallet_type}
             onChange={(e)=>setFilters({...filters, pallet_type:e.target.value})}
@@ -329,7 +321,6 @@ export default function WarehouseOptimizer() {
           </select>
 
 
-          {/* EMPTY */}
           <select
             value={filters.empty}
             onChange={(e)=>setFilters({...filters, empty:e.target.value})}
@@ -340,7 +331,7 @@ export default function WarehouseOptimizer() {
           </select>
 
 
-          <button onClick={clearFilters} className="clear-btn">
+          <button onClick={clearFilters}>
             Clear Filters
           </button>
 
@@ -414,6 +405,8 @@ export default function WarehouseOptimizer() {
             <div>Occupancy: {selected.occupancy_percent}%</div>
             <div style={{marginTop:10}}>Capacity: {selected.max_cartons}</div>
 
+
+            {/* LOCATION CAPACITY */}
             <div style={{marginTop:20}}>
 
               <h4>Set Location Capacity</h4>
@@ -448,6 +441,59 @@ export default function WarehouseOptimizer() {
               </button>
 
             </div>
+
+
+            {/* GROUP CAPACITY */}
+            {selected.items && selected.items.length > 0 && (
+
+              <div style={{marginTop:25}}>
+
+                <h4>Set Brand / Category Capacity</h4>
+
+                <div style={{fontSize:13}}>
+                  Brand: {selected.items[0].brand}
+                </div>
+
+                <div style={{fontSize:13}}>
+                  Category: {selected.items[0].category}
+                </div>
+
+                <input
+                  type="number"
+                  placeholder="Group capacity"
+                  value={groupCapacity}
+                  onChange={(e)=>setGroupCapacity(e.target.value)}
+                />
+
+                <button
+                  onClick={async ()=>{
+
+                    if(!groupCapacity) return;
+
+                    await fetch(`${BASE_URL}/optimizer/set-group-capacity`,{
+                      method:"POST",
+                      headers:{
+                        "Content-Type":"application/json"
+                      },
+                      body:JSON.stringify({
+                        brand:selected.items[0].brand,
+                        category:selected.items[0].category,
+                        max_cartons:Number(groupCapacity)
+                      })
+                    });
+
+                    setGroupCapacity("");
+                    loadLocations();
+
+                  }}
+                >
+                  Update Group Capacity
+                </button>
+
+              </div>
+
+            )}
+
 
             <h4 style={{marginTop:20}}>Products</h4>
 
