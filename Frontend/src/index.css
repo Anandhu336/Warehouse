@@ -546,16 +546,13 @@ td input {
   grid-template-columns: 1fr 380px;
   gap: 20px;
   padding: 20px;
-
-  align-items: start;
 }
 /* ===== GRID ===== */
 
-.dashboard-grid {
+..dashboard-grid {
+  height: calc(100vh - 140px);
   overflow-y: auto;
   padding-right: 10px;
-  min-height: 0;
-  height: 100%;
 }
 
 .card-grid {
@@ -638,11 +635,8 @@ td input {
   border-radius: 14px;
   border: 1px solid #1f2937;
 
-  height: 100%;
+  height: calc(100vh - 140px);
   overflow-y: auto;
-
-  position: sticky;
-  top: 20px;
 }
 
 /* ===============================
