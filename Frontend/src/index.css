@@ -828,3 +828,89 @@ td input {
 .react-select__menu {
   z-index: 999999 !important;
 }
+
+
+
+
+/* ===============================
+   SCANNER PAGE
+
+================================ */
+
+.scanner-wrapper{
+  background:#0f172a;
+  color:white;
+  min-height:100vh;
+  padding:40px;
+  font-family:Arial;
+}
+
+.scan-box{
+  display:flex;
+  gap:10px;
+  margin-bottom:30px;
+}
+
+.scan-box input{
+  flex:1;
+  padding:18px;
+  font-size:20px;
+  border-radius:8px;
+  border:none;
+}
+
+.scan-box button{
+  padding:18px 30px;
+  font-size:18px;
+  background:#22c55e;
+  border:none;
+  border-radius:8px;
+  color:black;
+  font-weight:bold;
+}
+
+.location-panel{
+  background:#1e293b;
+  padding:30px;
+  border-radius:12px;
+}
+
+.location-stats{
+  display:flex;
+  gap:30px;
+  margin-bottom:20px;
+}
+
+.sku-list{
+  margin-top:20px;
+}
+
+.sku-row{
+  display:flex;
+  justify-content:space-between;
+  padding:14px;
+  background:#334155;
+  border-radius:6px;
+  margin-bottom:8px;
+}
+
+.actions{
+  margin-top:30px;
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:20px;
+}
+
+.action-btn{
+  padding:20px;
+  font-size:18px;
+  border:none;
+  border-radius:8px;
+  background:#3b82f6;
+  color:white;
+  font-weight:bold;
+}
+
+.action-btn.danger{
+  background:#ef4444;
+}
