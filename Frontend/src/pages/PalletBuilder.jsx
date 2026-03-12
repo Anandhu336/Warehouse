@@ -14,11 +14,6 @@ export default function PalletBuilder() {
   const qtyRef = useRef();
   const locationRef = useRef();
 
-
-  // =========================
-  // CREATE PALLET
-  // =========================
-
   const createPallet = async () => {
 
     try {
@@ -40,7 +35,7 @@ export default function PalletBuilder() {
       load(data.pallet_id);
 
       setTimeout(() => {
-        if (skuRef.current) skuRef.current.focus();
+        skuRef.current?.focus();
       }, 100);
 
     } catch {
@@ -49,10 +44,6 @@ export default function PalletBuilder() {
 
   };
 
-
-  // =========================
-  // LOAD PALLET ITEMS
-  // =========================
 
   const load = async (pid) => {
 
@@ -71,10 +62,6 @@ export default function PalletBuilder() {
 
   };
 
-
-  // =========================
-  // ADD ITEM
-  // =========================
 
   const addItem = async () => {
 
@@ -115,7 +102,7 @@ export default function PalletBuilder() {
       load(pallet);
 
       setTimeout(() => {
-        if (skuRef.current) skuRef.current.focus();
+        skuRef.current?.focus();
       }, 100);
 
     } catch {
@@ -124,10 +111,6 @@ export default function PalletBuilder() {
 
   };
 
-
-  // =========================
-  // VERIFY PALLET
-  // =========================
 
   const verifyPallet = async () => {
 
@@ -140,15 +123,11 @@ export default function PalletBuilder() {
     setMessage("✅ Pallet verified");
 
     setTimeout(() => {
-      if (locationRef.current) locationRef.current.focus();
+      locationRef.current?.focus();
     }, 100);
 
   };
 
-
-  // =========================
-  // MOVE PALLET
-  // =========================
 
   const movePallet = async () => {
 
@@ -184,8 +163,7 @@ export default function PalletBuilder() {
 
     <div style={wrapper}>
 
-      <h2 style={{marginBottom:20}}>📦 Pallet Builder</h2>
-
+      <h2 style={{ marginBottom: 20 }}>📦 Pallet Builder</h2>
 
       {!pallet && (
         <button style={btnPrimary} onClick={createPallet}>
@@ -193,17 +171,12 @@ export default function PalletBuilder() {
         </button>
       )}
 
-
       {pallet && (
 
         <>
-
           <div style={palletCard}>
             Pallet: {pallet}
           </div>
-
-
-          {/* SKU SCAN */}
 
           <input
             ref={skuRef}
@@ -211,15 +184,10 @@ export default function PalletBuilder() {
             placeholder="Scan SKU"
             value={sku}
             onChange={(e) => setSku(e.target.value)}
-            onKeyDown={(e)=>{
-              if(e.key==="Enter"){
-                if(qtyRef.current) qtyRef.current.focus();
-              }
+            onKeyDown={(e) => {
+              if (e.key === "Enter") qtyRef.current?.focus();
             }}
           />
-
-
-          {/* CARTONS */}
 
           <input
             ref={qtyRef}
@@ -227,25 +195,18 @@ export default function PalletBuilder() {
             type="number"
             value={cartons}
             onChange={(e) => setCartons(e.target.value)}
-            onKeyDown={(e)=>{
-              if(e.key==="Enter"){
-                addItem();
-              }
+            onKeyDown={(e) => {
+              if (e.key === "Enter") addItem();
             }}
           />
-
 
           <button style={btnPrimary} onClick={addItem}>
             Add Item
           </button>
 
-
           <hr style={divider} />
 
-
-          {/* PALLET ITEMS */}
-
-          <div style={{marginBottom:10,fontWeight:"bold"}}>
+          <div style={{ marginBottom: 10, fontWeight: "bold" }}>
             Items ({items.length})
           </div>
 
@@ -254,7 +215,7 @@ export default function PalletBuilder() {
             <div key={index} style={row}>
 
               <div>
-                <div style={{fontWeight:600}}>
+                <div style={{ fontWeight: 600 }}>
                   {i.product_name}
                 </div>
 
@@ -263,7 +224,7 @@ export default function PalletBuilder() {
                 </div>
               </div>
 
-              <div style={{fontWeight:700}}>
+              <div style={{ fontWeight: 700 }}>
                 {i.cartons} cartons
               </div>
 
@@ -271,18 +232,11 @@ export default function PalletBuilder() {
 
           ))}
 
-
           <hr style={divider} />
-
-
-          {/* VERIFY */}
 
           <button style={btnPrimary} onClick={verifyPallet}>
             Verify Pallet
           </button>
-
-
-          {/* MOVE */}
 
           <input
             ref={locationRef}
@@ -290,18 +244,14 @@ export default function PalletBuilder() {
             placeholder="Scan Destination Location"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
-            onKeyDown={(e)=>{
-              if(e.key==="Enter"){
-                movePallet();
-              }
+            onKeyDown={(e) => {
+              if (e.key === "Enter") movePallet();
             }}
           />
-
 
           <button style={btnPrimary} onClick={movePallet}>
             Move Pallet
           </button>
-
 
           <div style={messageBox}>
             {message}
@@ -316,3 +266,66 @@ export default function PalletBuilder() {
   );
 
 }
+
+
+// =============================
+// STYLES
+// =============================
+
+const wrapper = {
+  padding: 40,
+  maxWidth: 600,
+  margin: "auto",
+  color: "white"
+};
+
+const palletCard = {
+  background: "#334155",
+  padding: 14,
+  borderRadius: 8,
+  marginBottom: 20,
+  fontWeight: "bold"
+};
+
+const input = {
+  width: "100%",
+  padding: 14,
+  marginBottom: 12,
+  borderRadius: 6,
+  border: "1px solid #334155",
+  background: "#0f172a",
+  color: "white"
+};
+
+const btnPrimary = {
+  padding: "12px 18px",
+  background: "#22c55e",
+  border: "none",
+  borderRadius: 6,
+  fontWeight: "bold",
+  cursor: "pointer",
+  marginBottom: 10
+};
+
+const divider = {
+  border: "1px solid #334155",
+  margin: "20px 0"
+};
+
+const row = {
+  display: "flex",
+  justifyContent: "space-between",
+  background: "#1e293b",
+  padding: 12,
+  borderRadius: 6,
+  marginBottom: 8
+};
+
+const skuLabel = {
+  fontSize: 12,
+  opacity: 0.7
+};
+
+const messageBox = {
+  marginTop: 15
+};

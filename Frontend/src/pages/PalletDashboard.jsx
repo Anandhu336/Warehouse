@@ -6,11 +6,6 @@ export default function PalletDashboard() {
   const [pallets, setPallets] = useState([]);
   const [loading, setLoading] = useState(true);
 
-
-  // =============================
-  // LOAD DASHBOARD DATA
-  // =============================
-
   const load = async () => {
 
     try {
@@ -18,7 +13,6 @@ export default function PalletDashboard() {
       const res = await fetch(`${BASE_URL}/pallet/dashboard`);
       const data = await res.json();
 
-      // Ensure we always store an array
       if (Array.isArray(data)) {
         setPallets(data);
       } else if (Array.isArray(data.pallets)) {
@@ -40,11 +34,6 @@ export default function PalletDashboard() {
 
   };
 
-
-  // =============================
-  // AUTO REFRESH
-  // =============================
-
   useEffect(() => {
 
     load();
@@ -54,7 +43,6 @@ export default function PalletDashboard() {
     return () => clearInterval(interval);
 
   }, []);
-
 
   return (
 
@@ -68,16 +56,16 @@ export default function PalletDashboard() {
         <div>No pallets currently active</div>
       )}
 
-      {pallets.map((p, index) => (
+      {pallets.map((p) => (
 
-        <div key={index} style={card}>
+        <div key={p.pallet_id} style={card}>
 
           <div style={header}>
             {p.pallet_id}
           </div>
 
           <div style={statusRow}>
-            Status: 
+            Status:
             <span style={statusColor(p.status)}>
               {p.status}
             </span>
@@ -127,25 +115,20 @@ const statusRow = {
   marginBottom: 6
 };
 
+function statusColor(status) {
 
-// =============================
-// STATUS COLOR
-// =============================
-
-function statusColor(status){
-
-  if(status === "building"){
-    return { color:"#facc15", marginLeft:6 };
+  if (status === "building") {
+    return { color: "#facc15", marginLeft: 6 };
   }
 
-  if(status === "verified"){
-    return { color:"#22c55e", marginLeft:6 };
+  if (status === "verified") {
+    return { color: "#22c55e", marginLeft: 6 };
   }
 
-  if(status === "stored"){
-    return { color:"#38bdf8", marginLeft:6 };
+  if (status === "stored") {
+    return { color: "#38bdf8", marginLeft: 6 };
   }
 
-  return { marginLeft:6 };
+  return { marginLeft: 6 };
 
 }
