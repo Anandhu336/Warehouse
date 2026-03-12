@@ -1,69 +1,151 @@
 import { useEffect, useState } from "react";
 import BASE_URL from "../api";
 
-export default function PalletDashboard(){
+export default function PalletDashboard() {
 
-const [pallets,setPallets] = useState([]);
+  const [pallets, setPallets] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-const load = async()=>{
 
-const res = await fetch(`${BASE_URL}/pallet/dashboard`);
-const data = await res.json();
+  // =============================
+  // LOAD DASHBOARD DATA
+  // =============================
 
-setPallets(data);
+  const load = async () => {
 
+    try {
+
+      const res = await fetch(`${BASE_URL}/pallet/dashboard`);
+      const data = await res.json();
+
+      // Ensure we always store an array
+      if (Array.isArray(data)) {
+        setPallets(data);
+      } else if (Array.isArray(data.pallets)) {
+        setPallets(data.pallets);
+      } else {
+        setPallets([]);
+      }
+
+    } catch (err) {
+
+      console.error("Dashboard load failed", err);
+      setPallets([]);
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
+  };
+
+
+  // =============================
+  // AUTO REFRESH
+  // =============================
+
+  useEffect(() => {
+
+    load();
+
+    const interval = setInterval(load, 5000);
+
+    return () => clearInterval(interval);
+
+  }, []);
+
+
+  return (
+
+    <div style={wrapper}>
+
+      <h2 style={{ marginBottom: 20 }}>📦 Pallet Dashboard</h2>
+
+      {loading && <div>Loading pallets...</div>}
+
+      {!loading && pallets.length === 0 && (
+        <div>No pallets currently active</div>
+      )}
+
+      {pallets.map((p, index) => (
+
+        <div key={index} style={card}>
+
+          <div style={header}>
+            {p.pallet_id}
+          </div>
+
+          <div style={statusRow}>
+            Status: 
+            <span style={statusColor(p.status)}>
+              {p.status}
+            </span>
+          </div>
+
+          <div>SKUs: {p.total_skus}</div>
+
+          <div>Cartons: {p.total_cartons}</div>
+
+        </div>
+
+      ))}
+
+    </div>
+
+  );
+
+}
+
+
+// =============================
+// STYLES
+// =============================
+
+const wrapper = {
+  padding: 40,
+  maxWidth: 900,
+  margin: "auto",
+  color: "white"
 };
 
-useEffect(()=>{
+const card = {
+  background: "#1e293b",
+  padding: 20,
+  marginTop: 12,
+  borderRadius: 8,
+  border: "1px solid #334155"
+};
 
-load();
+const header = {
+  fontWeight: "bold",
+  fontSize: 18,
+  marginBottom: 6
+};
 
-const interval = setInterval(load,5000);
+const statusRow = {
+  marginBottom: 6
+};
 
-return ()=>clearInterval(interval);
 
-},[]);
+// =============================
+// STATUS COLOR
+// =============================
 
-return(
+function statusColor(status){
 
-<div style={wrapper}>
+  if(status === "building"){
+    return { color:"#facc15", marginLeft:6 };
+  }
 
-<h2>📦 Pallet Dashboard</h2>
+  if(status === "verified"){
+    return { color:"#22c55e", marginLeft:6 };
+  }
 
-{pallets.map((p,index)=>(
+  if(status === "stored"){
+    return { color:"#38bdf8", marginLeft:6 };
+  }
 
-<div key={index} style={card}>
+  return { marginLeft:6 };
 
-<div style={{fontWeight:"bold"}}>
-{p.pallet_id}
-</div>
-
-<div>Status: {p.status}</div>
-
-<div>SKUs: {p.total_skus}</div>
-
-<div>Cartons: {p.total_cartons}</div>
-
-</div>
-
-))}
-
-</div>
-
-);
-
-}
-
-const wrapper={
-padding:40,
-maxWidth:900,
-margin:"auto",
-color:"white"
-}
-
-const card={
-background:"#1e293b",
-padding:20,
-marginTop:10,
-borderRadius:6
 }
