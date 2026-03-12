@@ -77,31 +77,6 @@ def add_item(data: AddItem):
 
 
 # -------------------------
-# GET PALLET CONTENT
-# -------------------------
-
-@router.get("/{pallet_id}")
-def get_pallet(pallet_id: str):
-
-    with engine.begin() as conn:
-
-        rows = conn.execute(text("""
-        SELECT
-            pi.sku,
-            p.product_name,
-            pi.cartons
-        FROM pallet_items pi
-        JOIN products p ON p.sku = pi.sku
-        WHERE pi.pallet_id = :pallet
-        """), {"pallet": pallet_id}).mappings().all()
-
-    return {
-        "pallet_id": pallet_id,
-        "items": rows
-    }
-
-
-# -------------------------
 # VERIFY PALLET
 # -------------------------
 
@@ -166,6 +141,11 @@ def move_pallet(data: MovePallet):
 
     return {"status": "pallet stored"}
 
+
+# -------------------------
+# DASHBOARD
+# -------------------------
+
 @router.get("/dashboard")
 def pallet_dashboard():
 
@@ -185,3 +165,28 @@ def pallet_dashboard():
         """)).mappings().all()
 
     return [dict(row) for row in pallets]
+
+
+# -------------------------
+# GET PALLET CONTENT
+# -------------------------
+
+@router.get("/{pallet_id}")
+def get_pallet(pallet_id: str):
+
+    with engine.begin() as conn:
+
+        rows = conn.execute(text("""
+        SELECT
+            pi.sku,
+            p.product_name,
+            pi.cartons
+        FROM pallet_items pi
+        JOIN products p ON p.sku = pi.sku
+        WHERE pi.pallet_id = :pallet
+        """), {"pallet": pallet_id}).mappings().all()
+
+    return {
+        "pallet_id": pallet_id,
+        "items": rows
+    }
