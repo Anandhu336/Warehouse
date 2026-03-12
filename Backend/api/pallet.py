@@ -172,11 +172,11 @@ def pallet_dashboard():
     with engine.begin() as conn:
 
         pallets = conn.execute(text("""
-        SELECT 
+        SELECT
             p.pallet_id,
             p.status,
-            COUNT(pi.sku) AS total_skus,
-            COALESCE(SUM(pi.cartons),0) AS total_cartons
+            COUNT(pi.sku) as total_skus,
+            COALESCE(SUM(pi.cartons),0) as total_cartons
         FROM pallets p
         LEFT JOIN pallet_items pi
         ON p.pallet_id = pi.pallet_id
@@ -184,4 +184,4 @@ def pallet_dashboard():
         ORDER BY p.pallet_id DESC
         """)).mappings().all()
 
-    return pallets
+    return list(pallets)
