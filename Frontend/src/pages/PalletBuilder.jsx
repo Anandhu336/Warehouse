@@ -40,7 +40,7 @@ export default function PalletBuilder() {
       load(data.pallet_id);
 
       setTimeout(() => {
-        skuRef.current.focus();
+        if (skuRef.current) skuRef.current.focus();
       }, 100);
 
     } catch {
@@ -78,6 +78,11 @@ export default function PalletBuilder() {
 
   const addItem = async () => {
 
+    if (!pallet) {
+      setMessage("❌ Create pallet first");
+      return;
+    }
+
     if (!sku) {
       setMessage("❌ Scan SKU first");
       return;
@@ -110,7 +115,7 @@ export default function PalletBuilder() {
       load(pallet);
 
       setTimeout(() => {
-        skuRef.current.focus();
+        if (skuRef.current) skuRef.current.focus();
       }, 100);
 
     } catch {
@@ -126,6 +131,8 @@ export default function PalletBuilder() {
 
   const verifyPallet = async () => {
 
+    if (!pallet) return;
+
     await fetch(`${BASE_URL}/pallet/verify/${pallet}`, {
       method: "POST"
     });
@@ -133,7 +140,7 @@ export default function PalletBuilder() {
     setMessage("✅ Pallet verified");
 
     setTimeout(() => {
-      locationRef.current.focus();
+      if (locationRef.current) locationRef.current.focus();
     }, 100);
 
   };
@@ -144,6 +151,11 @@ export default function PalletBuilder() {
   // =========================
 
   const movePallet = async () => {
+
+    if (!pallet) {
+      setMessage("❌ Create pallet first");
+      return;
+    }
 
     if (!location) {
       setMessage("❌ Scan destination location");
@@ -201,7 +213,7 @@ export default function PalletBuilder() {
             onChange={(e) => setSku(e.target.value)}
             onKeyDown={(e)=>{
               if(e.key==="Enter"){
-                qtyRef.current.focus();
+                if(qtyRef.current) qtyRef.current.focus();
               }
             }}
           />
@@ -304,72 +316,3 @@ export default function PalletBuilder() {
   );
 
 }
-
-
-// =========================
-// STYLES
-// =========================
-
-const wrapper = {
-  padding: 40,
-  maxWidth: 650,
-  margin: "auto",
-  color: "white"
-};
-
-const palletCard = {
-  background:"#1e293b",
-  padding:"14px 18px",
-  borderRadius:6,
-  fontSize:20,
-  marginBottom:20,
-  fontWeight:"bold"
-};
-
-const input = {
-  width:"100%",
-  padding:16,
-  marginTop:10,
-  marginBottom:10,
-  fontSize:18,
-  borderRadius:6,
-  border:"1px solid #334155",
-  background:"#0f172a",
-  color:"white"
-};
-
-const btnPrimary = {
-  padding:"14px 20px",
-  background:"#22c55e",
-  border:"none",
-  marginTop:10,
-  fontWeight:"bold",
-  cursor:"pointer",
-  borderRadius:6
-};
-
-const divider = {
-  border:"none",
-  borderTop:"1px solid #334155",
-  margin:"20px 0"
-};
-
-const row = {
-  display:"flex",
-  justifyContent:"space-between",
-  padding:"12px 16px",
-  background:"#1e293b",
-  border:"1px solid #334155",
-  borderRadius:6,
-  marginTop:8
-};
-
-const skuLabel = {
-  fontSize:12,
-  opacity:0.7
-};
-
-const messageBox = {
-  marginTop:20,
-  fontWeight:"bold"
-};
