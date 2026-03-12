@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import BASE_URL from "../api";
 
 export default function PalletBuilder() {
@@ -10,10 +10,15 @@ export default function PalletBuilder() {
   const [location, setLocation] = useState("");
   const [message, setMessage] = useState("");
 
+  const skuRef = useRef();
+  const qtyRef = useRef();
+  const locationRef = useRef();
 
-  // -----------------------------
+
+  // =========================
   // CREATE PALLET
-  // -----------------------------
+  // =========================
+
   const createPallet = async () => {
 
     try {
@@ -24,21 +29,31 @@ export default function PalletBuilder() {
 
       const data = await res.json();
 
+      if (!res.ok) {
+        setMessage("❌ Failed to create pallet");
+        return;
+      }
+
       setPallet(data.pallet_id);
-      setMessage(`Pallet created: ${data.pallet_id}`);
+      setMessage(`✅ Pallet created: ${data.pallet_id}`);
 
       load(data.pallet_id);
 
-    } catch (err) {
-      setMessage("❌ Failed to create pallet");
+      setTimeout(() => {
+        skuRef.current.focus();
+      }, 100);
+
+    } catch {
+      setMessage("❌ Backend connection failed");
     }
 
   };
 
 
-  // -----------------------------
+  // =========================
   // LOAD PALLET ITEMS
-  // -----------------------------
+  // =========================
+
   const load = async (pid) => {
 
     if (!pid) return;
@@ -57,9 +72,10 @@ export default function PalletBuilder() {
   };
 
 
-  // -----------------------------
-  // ADD SKU TO PALLET
-  // -----------------------------
+  // =========================
+  // ADD ITEM
+  // =========================
+
   const addItem = async () => {
 
     if (!sku) {
@@ -76,7 +92,7 @@ export default function PalletBuilder() {
         },
         body: JSON.stringify({
           pallet_id: pallet,
-          sku: sku,
+          sku: sku.trim(),
           cartons: Number(cartons)
         })
       });
@@ -93,6 +109,10 @@ export default function PalletBuilder() {
 
       load(pallet);
 
+      setTimeout(() => {
+        skuRef.current.focus();
+      }, 100);
+
     } catch {
       setMessage("❌ Failed to add item");
     }
@@ -100,9 +120,10 @@ export default function PalletBuilder() {
   };
 
 
-  // -----------------------------
+  // =========================
   // VERIFY PALLET
-  // -----------------------------
+  // =========================
+
   const verifyPallet = async () => {
 
     await fetch(`${BASE_URL}/pallet/verify/${pallet}`, {
@@ -111,12 +132,17 @@ export default function PalletBuilder() {
 
     setMessage("✅ Pallet verified");
 
+    setTimeout(() => {
+      locationRef.current.focus();
+    }, 100);
+
   };
 
 
-  // -----------------------------
+  // =========================
   // MOVE PALLET
-  // -----------------------------
+  // =========================
+
   const movePallet = async () => {
 
     if (!location) {
@@ -146,11 +172,11 @@ export default function PalletBuilder() {
 
     <div style={wrapper}>
 
-      <h2>📦 Pallet Builder</h2>
+      <h2 style={{marginBottom:20}}>📦 Pallet Builder</h2>
 
 
       {!pallet && (
-        <button style={btn} onClick={createPallet}>
+        <button style={btnPrimary} onClick={createPallet}>
           Create Pallet
         </button>
       )}
@@ -159,18 +185,24 @@ export default function PalletBuilder() {
       {pallet && (
 
         <>
-          <h3>Pallet: {pallet}</h3>
+
+          <div style={palletCard}>
+            Pallet: {pallet}
+          </div>
 
 
           {/* SKU SCAN */}
 
           <input
+            ref={skuRef}
             style={input}
             placeholder="Scan SKU"
             value={sku}
             onChange={(e) => setSku(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") addItem();
+            onKeyDown={(e)=>{
+              if(e.key==="Enter"){
+                qtyRef.current.focus();
+              }
             }}
           />
 
@@ -178,39 +210,62 @@ export default function PalletBuilder() {
           {/* CARTONS */}
 
           <input
+            ref={qtyRef}
             style={input}
             type="number"
             value={cartons}
             onChange={(e) => setCartons(e.target.value)}
+            onKeyDown={(e)=>{
+              if(e.key==="Enter"){
+                addItem();
+              }
+            }}
           />
 
 
-          <button style={btn} onClick={addItem}>
+          <button style={btnPrimary} onClick={addItem}>
             Add Item
           </button>
 
 
-          <hr />
+          <hr style={divider} />
 
 
           {/* PALLET ITEMS */}
 
+          <div style={{marginBottom:10,fontWeight:"bold"}}>
+            Items ({items.length})
+          </div>
+
           {items.map((i, index) => (
 
             <div key={index} style={row}>
-              <div>{i.product_name}</div>
-              <div>{i.cartons} cartons</div>
+
+              <div>
+                <div style={{fontWeight:600}}>
+                  {i.product_name}
+                </div>
+
+                <div style={skuLabel}>
+                  SKU: {i.sku}
+                </div>
+              </div>
+
+              <div style={{fontWeight:700}}>
+                {i.cartons} cartons
+              </div>
+
             </div>
 
           ))}
 
 
-          <hr />
+          <hr style={divider} />
 
 
           {/* VERIFY */}
 
-          <button style={btn} onClick={verifyPallet}>
+          <button style={btnPrimary} onClick={verifyPallet}>
             Verify Pallet
           </button>
 
@@ -218,19 +273,27 @@ export default function PalletBuilder() {
           {/* MOVE */}
 
           <input
+            ref={locationRef}
             style={input}
             placeholder="Scan Destination Location"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
+            onKeyDown={(e)=>{
+              if(e.key==="Enter"){
+                movePallet();
+              }
+            }}
           />
 
 
-          <button style={btn} onClick={movePallet}>
+          <button style={btnPrimary} onClick={movePallet}>
             Move Pallet
           </button>
 
 
-          <p style={{ marginTop: 20 }}>{message}</p>
+          <div style={messageBox}>
+            {message}
+          </div>
 
         </>
 
@@ -243,37 +306,70 @@ export default function PalletBuilder() {
 }
 
 
-// -----------------------------
+// =========================
 // STYLES
-// -----------------------------
+// =========================
 
 const wrapper = {
   padding: 40,
-  maxWidth: 600,
-  margin: "auto"
+  maxWidth: 650,
+  margin: "auto",
+  color: "white"
+};
+
+const palletCard = {
+  background:"#1e293b",
+  padding:"14px 18px",
+  borderRadius:6,
+  fontSize:20,
+  marginBottom:20,
+  fontWeight:"bold"
 };
 
 const input = {
-  width: "100%",
-  padding: 14,
-  marginTop: 10,
-  marginBottom: 10,
-  fontSize: 18
+  width:"100%",
+  padding:16,
+  marginTop:10,
+  marginBottom:10,
+  fontSize:18,
+  borderRadius:6,
+  border:"1px solid #334155",
+  background:"#0f172a",
+  color:"white"
 };
 
-const btn = {
-  padding: 16,
-  background: "#22c55e",
-  border: "none",
-  marginTop: 10,
-  fontWeight: "bold",
-  cursor: "pointer"
+const btnPrimary = {
+  padding:"14px 20px",
+  background:"#22c55e",
+  border:"none",
+  marginTop:10,
+  fontWeight:"bold",
+  cursor:"pointer",
+  borderRadius:6
+};
+
+const divider = {
+  border:"none",
+  borderTop:"1px solid #334155",
+  margin:"20px 0"
 };
 
 const row = {
-  display: "flex",
-  justifyContent: "space-between",
-  padding: 10,
-  background: "#f1f1f1",
-  marginTop: 5
+  display:"flex",
+  justifyContent:"space-between",
+  padding:"12px 16px",
+  background:"#1e293b",
+  border:"1px solid #334155",
+  borderRadius:6,
+  marginTop:8
+};
+
+const skuLabel = {
+  fontSize:12,
+  opacity:0.7
+};
+
+const messageBox = {
+  marginTop:20,
+  fontWeight:"bold"
 };

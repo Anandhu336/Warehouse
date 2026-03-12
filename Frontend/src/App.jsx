@@ -8,6 +8,7 @@ import WarehouseOptimizer from "./pages/WarehouseOptimizer";
 import PurchaseDashboard from "./pages/PurchaseDashboard";
 import ScannerPage from "./pages/ScannerPage";
 import PalletBuilder from "./pages/PalletBuilder";
+import PalletDashboard from "./pages/PalletDashboard";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
       <Route path="/purchase-dashboard" element={<PurchaseDashboard />} />
       <Route path="/scanner" element={<ScannerPage />} />
       <Route path="/pallet-builder" element={<PalletBuilder />} />
+      <Route path="/pallet-dashboard" element={<PalletDashboard />} />
       <Route path="*" element={<Home />} />
     </Routes>
   );

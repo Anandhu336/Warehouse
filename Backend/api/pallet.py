@@ -165,3 +165,25 @@ def move_pallet(data: MovePallet):
         """), {"pallet": data.pallet_id})
 
     return {"status": "pallet stored"}
+
+
+@router.get("/dashboard")
+def pallet_dashboard():
+
+    with engine.begin() as conn:
+
+        pallets = conn.execute(text("""
+        SELECT 
+            p.pallet_id,
+            p.status,
+            COUNT(pi.sku) AS total_skus,
+            COALESCE(SUM(pi.cartons),0) AS total_cartons,
+            p.created_at
+        FROM pallets p
+        LEFT JOIN pallet_items pi
+        ON p.pallet_id = pi.pallet_id
+        GROUP BY p.pallet_id,p.status,p.created_at
+        ORDER BY p.created_at DESC
+        """)).mappings().all()
+
+    return pallets

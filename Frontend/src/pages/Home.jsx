@@ -111,6 +111,13 @@ export default function Home() {
             disabled
           />
 
+          <FeatureCard
+
+            title="Pallet Dashboard"
+            desc="Live pallet receiving monitor"
+            onClick={() => navigate("/pallet-dashboard")}
+          />
+
         </div>
 
       </div>
